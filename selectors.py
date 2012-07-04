@@ -1,3 +1,12 @@
+def previous_element(element):
+    siblings = element.parent.childNodes
+    
+    if siblings.index(element) == 0:
+        return None
+    else:
+        return siblings[siblings.index(element) - 1]
+
+
 class ElementSelector:
     
     def __init__(self, name=None):
@@ -52,10 +61,12 @@ class ElementSelector:
                 return False
     
     def prev_select(self, element):
-        if element.prev is None:
+        prev = previous_element(element)
+        
+        if prev is None:
             return False
         else:
-            if self.prev.this_select(element.prev):
+            if self.prev.this_select(prev):
                 return True
             else:
                 return False
@@ -83,10 +94,10 @@ class AttributeSelector:
     
     def selects(self, element):
         if self.value is None:
-            if self.name in element.attrs:
+            if self.name in element.attributes:
                 return True
         else:
-            v = element.attrs.get(self.name)
+            v = element.attributes.get(self.name)
             if v is None:
                 return False
             if self.match_type == "=" and v == self.value:
