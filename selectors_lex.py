@@ -68,8 +68,8 @@ def t_STRING(t):
 t_FUNCTION = ident + r"\("
 t_NUMBER = num
 t_HASH = r"\#" + name
-t_PLUS = w + r"\+"
-t_GREATER = w + r">"
+t_PLUS = w + r"\+" + w
+t_GREATER = w + r">" + w
 t_COMMA = w + r","
 # t_TILDE = w + r"~"
 t_NOT = r":not\("

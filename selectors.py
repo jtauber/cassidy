@@ -20,7 +20,9 @@ class ElementSelector:
         if (
             isinstance(other, ElementSelector) and
             self.name == other.name and
-            self.attr_selectors == other.attr_selectors
+            self.attr_selectors == other.attr_selectors and
+            self.ancestor == other.ancestor and
+            self.parent == other.parent
         ):
             return True
         else:

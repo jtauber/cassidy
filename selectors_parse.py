@@ -19,6 +19,27 @@ def p_selector(p):
     p[0] = p[1]
 
 
+def p_selector_descendant(p):
+    """
+    selector : selector S simple_selector_sequence
+    """
+    p[0] = p[1].descendant(p[3])
+
+
+def p_selector_child(p):
+    """
+    selector : selector GREATER simple_selector_sequence
+    """
+    p[0] = p[1].child(p[3])
+
+
+def p_selector_followed_by(p):
+    """
+    selector : selector PLUS simple_selector_sequence
+    """
+    p[0] = p[1].followed_by(p[3])
+
+
 def p_simple_selector_sequence1(p):
     """
     simple_selector_sequence : simple_selector
@@ -120,7 +141,6 @@ assert parser.parse("*[att='val']") == ElementSelector().attr("att", "val")
 assert parser.parse("h1[title]") == ElementSelector("h1").attr("title")
 assert parser.parse("span[hello='Cleveland'][goodbye='Columbus']") == ElementSelector("span").attr("hello", "Cleveland").attr("goodbye", "Columbus")
 
-
 assert parser.parse("a[rel='copyright']") == ElementSelector("a").attr("rel", "copyright")
 assert parser.parse("a[rel~='copyright']") == ElementSelector("a").attr("rel", "copyright", "~=")
 assert parser.parse("a[hreflang='en']") == ElementSelector("a").attr("hreflang", "en", "=")
@@ -131,3 +151,9 @@ assert parser.parse("a[href$='.html']") == ElementSelector("a").attr("href", ".h
 assert parser.parse("a[href='.html']") == ElementSelector("a").attr("href", ".html")
 assert parser.parse("p[title*='hello']") == ElementSelector("p").attr("title", "hello", "*=")
 assert parser.parse("p[title='hello']") == ElementSelector("p").attr("title", "hello")
+
+assert parser.parse("h1 em") == ElementSelector("h1").descendant(ElementSelector("em"))
+assert parser.parse("span > em") == ElementSelector("span").child(ElementSelector("em"))
+assert parser.parse("div * p") == ElementSelector("div").descendant(ElementSelector()).descendant(ElementSelector("p"))
+assert parser.parse("div p *[href]") == ElementSelector("div").descendant(ElementSelector("p")).descendant(ElementSelector().attr("href"))
+assert parser.parse("math + p") == ElementSelector("math").followed_by(ElementSelector("p"))
