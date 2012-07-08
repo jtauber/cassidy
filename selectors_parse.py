@@ -1,0 +1,133 @@
+from selectors import ElementSelector, AttributeSelector
+
+import ply.yacc as yacc
+
+from selectors_lex import tokens
+
+
+def p_selectors_group(p):
+    """
+    selectors_group : selector
+    """
+    p[0] = p[1]
+
+
+def p_selector(p):
+    """
+    selector : simple_selector_sequence
+    """
+    p[0] = p[1]
+
+
+def p_simple_selector_sequence1(p):
+    """
+    simple_selector_sequence : simple_selector
+    """
+    p[0] = p[1]
+
+
+def p_simple_selector_sequence2(p):
+    """
+    simple_selector_sequence : repeatable_selector_sequence
+    """
+    p[0] = p[1][0]
+    for extra in p[1][1:]:
+        p[0].append(extra)
+
+
+def p_simple_selector_sequence3(p):
+    """
+    simple_selector_sequence : simple_selector repeatable_selector_sequence
+    """
+    p[0] = p[1]
+    for extra in p[2]:
+        p[0].append(extra)
+
+
+def p_repeatable_selector_sequence(p):
+    """
+    repeatable_selector_sequence : repeatable_selector
+                                 | repeatable_selector repeatable_selector_sequence
+    """
+    if len(p) == 2:
+        p[0] = [p[1]]
+    else:
+        p[0] = [p[1]] + p[2]
+
+
+def p_repeatable_selector(p):
+    """
+    repeatable_selector : attribute_selector
+    """
+    p[0] = p[1]
+
+
+def p_attribute_selector1(p):
+    """
+    attribute_selector : '[' IDENT ']'
+    """
+    p[0] = AttributeSelector(p[2])
+
+
+def p_attribute_selector2(p):
+    """
+    attribute_selector : '[' IDENT '=' STRING ']'
+                       | '[' IDENT INCLUDES STRING ']'
+                       | '[' IDENT DASHMATCH STRING ']'
+                       | '[' IDENT PREFIXMATCH STRING ']'
+                       | '[' IDENT SUFFIXMATCH STRING ']'
+                       | '[' IDENT SUBSTRINGMATCH STRING ']'
+    """
+    p[0] = AttributeSelector(p[2], p[4], p[3])
+
+
+def p_simple_selector(p):
+    """
+    simple_selector : type_selector
+                    | universal
+    """
+    p[0] = p[1]
+
+
+def p_type_selector(p):
+    """
+    type_selector : element_name
+    """
+    p[0] = ElementSelector(p[1])
+
+
+def p_universal(p):
+    """
+    universal : '*'
+    """
+    p[0] = ElementSelector()
+
+
+def p_element_name(p):
+    """
+    element_name : IDENT
+    """
+    p[0] = p[1]
+
+
+parser = yacc.yacc()
+
+assert parser.parse("e") == ElementSelector("e")
+assert parser.parse("*") == ElementSelector()
+assert parser.parse("[att]") == AttributeSelector("att")
+assert parser.parse("*[att]") == ElementSelector().attr("att")
+assert parser.parse("*[att='val']") == ElementSelector().attr("att", "val")
+assert parser.parse("h1[title]") == ElementSelector("h1").attr("title")
+assert parser.parse("span[hello='Cleveland'][goodbye='Columbus']") == ElementSelector("span").attr("hello", "Cleveland").attr("goodbye", "Columbus")
+
+
+assert parser.parse("a[rel='copyright']") == ElementSelector("a").attr("rel", "copyright")
+assert parser.parse("a[rel~='copyright']") == ElementSelector("a").attr("rel", "copyright", "~=")
+assert parser.parse("a[hreflang='en']") == ElementSelector("a").attr("hreflang", "en", "=")
+assert parser.parse("a[hreflang|='en']") == ElementSelector("a").attr("hreflang", "en", "|=")
+assert parser.parse("object[type^='image/']") == ElementSelector("object").attr("type", "image/", "^=")
+assert parser.parse("object[type='image/']") == ElementSelector("object").attr("type", "image/")
+assert parser.parse("a[href$='.html']") == ElementSelector("a").attr("href", ".html", "$=")
+assert parser.parse("a[href='.html']") == ElementSelector("a").attr("href", ".html")
+assert parser.parse("p[title*='hello']") == ElementSelector("p").attr("title", "hello", "*=")
+assert parser.parse("p[title='hello']") == ElementSelector("p").attr("title", "hello")

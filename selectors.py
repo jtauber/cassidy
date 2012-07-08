@@ -16,6 +16,20 @@ class ElementSelector:
         self.parent = None
         self.prev = None
     
+    def __eq__(self, other):
+        if (
+            isinstance(other, ElementSelector) and
+            self.name == other.name and
+            self.attr_selectors == other.attr_selectors
+        ):
+            return True
+        else:
+            return False
+    
+    def append(self, attr_selector):
+        self.attr_selectors.append(attr_selector)
+        return self
+    
     def attr(self, name, value=None, match_type="="):
         self.attr_selectors.append(AttributeSelector(name, value, match_type))
         return self
@@ -92,6 +106,17 @@ class AttributeSelector:
         self.value = value
         self.match_type = match_type
     
+    def __eq__(self, other):
+        if (
+            isinstance(other, AttributeSelector) and
+            self.name == other.name and
+            self.value == other.value and
+            self.match_type == other.match_type
+        ):
+            return True
+        else:
+            return False
+        
     def selects(self, element):
         if self.value is None:
             if self.name in element.attributes:
