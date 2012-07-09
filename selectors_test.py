@@ -2,7 +2,7 @@
 
 import html5lib
 
-from selectors import selector
+from cassidy.selectors import selector
 
 
 def html(s):
