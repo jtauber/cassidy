@@ -2,15 +2,11 @@
 
 import html5lib
 
-from selectors_parse import parser
+from selectors import selector
 
 
 def html(s):
     return html5lib.parse(s).childNodes[0].childNodes[1].childNodes[0]
-
-
-def selector(s):
-    return parser.parse(s)
 
 
 ## 6.1 type selector

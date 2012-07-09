@@ -1,8 +1,8 @@
-from selectors import ElementSelector, AttributeSelector
+from .selectors import ElementSelector, AttributeSelector
 
 import ply.yacc as yacc
 
-from selectors_lex import tokens
+from .lexer import tokens
 
 
 def p_selectors_group(p):
