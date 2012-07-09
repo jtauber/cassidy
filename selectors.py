@@ -100,6 +100,13 @@ class ElementSelector:
             return False
         
         return True
+    
+    def find(self, node):
+        if self.selects(node):
+            yield node
+        for child in node.childNodes:
+            for match in self.find(child):
+                yield match
 
 
 class AttributeSelector:

@@ -8,8 +8,10 @@ from selectors_parse import parser
 def html(s):
     return html5lib.parse(s).childNodes[0].childNodes[1].childNodes[0]
 
+
 def selector(s):
     return parser.parse(s)
+
 
 ## 6.1 type selector
 
@@ -104,5 +106,24 @@ assert selector("math + p").selects(p1)
 assert not selector("math + p").selects(p2)
 assert not selector("foo + math").selects(math)
 assert not selector("foo + div").selects(doc1)
+
+doc = html5lib.parse("<div><p>foo</p></div>")
+matches = list(selector("p").find(doc))
+assert len(matches) == 1
+assert matches[0].childNodes[0].value == "foo"
+
+doc = html5lib.parse("<div><p id='foo'>foo</p><p class='bar'>bar</p></div>")
+matches = list(selector("p").find(doc))
+assert len(matches) == 2
+assert matches[0].childNodes[0].value == "foo"
+assert matches[1].childNodes[0].value == "bar"
+
+matches = list(selector("p[id='foo']").find(doc))
+assert len(matches) == 1
+assert matches[0].childNodes[0].value == "foo"
+
+matches = list(selector("p[class='bar']").find(doc))
+assert len(matches) == 1
+assert matches[0].childNodes[0].value == "bar"
 
 print("all tests passed.")
