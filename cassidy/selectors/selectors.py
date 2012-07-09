@@ -125,13 +125,17 @@ class AttributeSelector:
             return True
         else:
             return False
+    
+    def selects(self, node):
+        # silly check if node is an element
+        if not hasattr(node, "attributes"):
+            return False
         
-    def selects(self, element):
         if self.value is None:
-            if self.name in element.attributes:
+            if self.name in node.attributes:
                 return True
         else:
-            v = element.attributes.get(self.name)
+            v = node.attributes.get(self.name)
             if v is None:
                 return False
             if self.match_type == "=" and v == self.value:
@@ -147,3 +151,10 @@ class AttributeSelector:
             if self.match_type == "*=" and self.value in v:
                 return True
             return False
+    
+    def find(self, node):
+        if self.selects(node):
+            yield node
+        for child in node.childNodes:
+            for match in self.find(child):
+                yield match

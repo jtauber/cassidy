@@ -103,6 +103,9 @@ assert not selector("math + p").selects(p2)
 assert not selector("foo + math").selects(math)
 assert not selector("foo + div").selects(doc1)
 
+
+## find tests
+
 doc = html5lib.parse("<div><p>foo</p></div>")
 matches = list(selector("p").find(doc))
 assert len(matches) == 1
@@ -119,6 +122,22 @@ assert len(matches) == 1
 assert matches[0].childNodes[0].value == "foo"
 
 matches = list(selector("p[class='bar']").find(doc))
+assert len(matches) == 1
+assert matches[0].childNodes[0].value == "bar"
+
+matches = list(selector("p#foo").find(doc))
+assert len(matches) == 1
+assert matches[0].childNodes[0].value == "foo"
+
+matches = list(selector("p.bar").find(doc))
+assert len(matches) == 1
+assert matches[0].childNodes[0].value == "bar"
+
+matches = list(selector("#foo").find(doc))
+assert len(matches) == 1
+assert matches[0].childNodes[0].value == "foo"
+
+matches = list(selector(".bar").find(doc))
 assert len(matches) == 1
 assert matches[0].childNodes[0].value == "bar"
 

@@ -78,9 +78,25 @@ def p_repeatable_selector_sequence(p):
 
 def p_repeatable_selector(p):
     """
-    repeatable_selector : attribute_selector
+    repeatable_selector : hash_selector
+                        | class_selector
+                        | attribute_selector
     """
     p[0] = p[1]
+
+
+def p_hash_selector(p):
+    """
+    hash_selector : HASH
+    """
+    p[0] = AttributeSelector("id", p[1][1:])
+
+
+def p_class_selector(p):
+    """
+    class_selector : '.' IDENT
+    """
+    p[0] = AttributeSelector("class", p[2])
 
 
 def p_attribute_selector1(p):
