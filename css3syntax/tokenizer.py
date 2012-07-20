@@ -19,7 +19,7 @@ def is_letter(ch):
 
 
 def is_non_ascii_character(ch):
-    return ch >= "\u00A0"
+    return ch >= "\xA0"
 
 
 def is_name_start_character(ch):
@@ -32,7 +32,7 @@ def is_name_character(ch):
 
 
 def is_non_printable_character(ch):
-    return "\u0000" <= ch <= "\u0008" or "\u000E" <= ch <= "\u001F" or "\u007F" <= ch <= "\009F"
+    return "\x00" <= ch <= "\x08" or "\x0E" <= ch <= "\x1F" or "\x7F" <= ch <= "\x9F"
 
 
 def is_newline(ch):
@@ -301,7 +301,17 @@ def tokenize(s):
                 yield ("delim", "@")
                 state = DATA_STATE
                 index -= 1
-        # AT_KEYWORD_REST_STATE
+        elif state == AT_KEYWORD_REST_STATE:
+            ch = s[index]
+            index += 1
+            if is_name_character(ch):
+                tmp_at_keyword += ch
+            elif ch == "\\":
+                xxx
+            else:
+                yield ("at", tmp_at_keyword)
+                state = DATA_STATE
+                index -= 1
         elif state == IDENTIFIER_STATE:
             ch = s[index]
             index += 1
