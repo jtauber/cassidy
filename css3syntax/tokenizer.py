@@ -403,13 +403,3 @@ def tokenize(s):
         else:
             print "UNKNOWN STATE", state
             raise StopIteration
-
-
-if __name__ == "__main__":
-    for token in tokenize("""
-    p > a {
-        color: blue;
-        text-decoration: underline;
-    }
-    """):
-        print token

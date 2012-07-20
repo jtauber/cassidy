@@ -289,22 +289,3 @@ class Parser:
     def pop_current_rule(self):
         rule = self.open_rule_stack.pop()
         self.current_rule().value.append(rule)
-
-
-if __name__ == "__main__":
-    # from tabatkins/css-parser
-    tests = [
-        "foo { bar: baz; }",
-        "foo { bar: rgb(255, 0, 127); }",
-        "#foo {}",
-        "@media{ }",
-    ]
-    
-    for test in tests:
-        print
-        print test
-        tokens = list(tokenize(test))
-        print tokens
-        p = Parser(tokens)
-        p.parse()
-        p.open_rule_stack[0].pretty_print()
