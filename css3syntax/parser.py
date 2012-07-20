@@ -14,6 +14,9 @@ NEXT_DECLARATION_ERROR_MODE = 10
 
 
 class Stylesheet:
+    
+    content_mode = TOP_LEVEL_MODE
+    
     def __init__(self):
         self.value = []
     
@@ -28,6 +31,17 @@ class AtRule:
         self.name = name
         self.prelude = []
         self.value = []
+
+    def pretty_print(self, indent):
+        i = "  " * indent
+        print i, "AtRule:"
+        print i, "  Name:", self.name
+        print i, "  Prelude:"
+        for item in self.prelude:
+            item.pretty_print(indent + 2)
+        print i, "  Value:"
+        for item in self.value:
+            item.pretty_print(indent + 2)
 
 
 class StyleRule:
@@ -114,6 +128,10 @@ class Parser:
         while self.index < len(self.tokens):
             if self.mode == TOP_LEVEL_MODE:
                 self.top_level_mode()
+            elif self.mode == AT_RULE_MODE:
+                self.at_rule_mode()
+            elif self.mode == RULE_MODE:
+                self.rule_mode()
             elif self.mode == SELECTOR_MODE:
                 self.selector_mode()
             elif self.mode == DECLARATION_MODE:
@@ -131,8 +149,8 @@ class Parser:
         
         if token[0] == "cdo" or token[0] == "cdc" or token[0] == "whitespace":
             pass
-        elif token[0] == "at_keyword":
-            self.open_rule_stack.append(at_rule(name=token[1]))
+        elif token[0] == "at":
+            self.open_rule_stack.append(AtRule(name=token[1]))
             self.mode = AT_RULE_MODE
         elif token[0] == "{":
             # @@@ parse error
@@ -144,6 +162,36 @@ class Parser:
             self.mode = SELECTOR_MODE
             self.reprocess_current_input_token()
     
+    def at_rule_mode(self):
+        token = self.consume_next_input_token()
+        
+        if token[0] == ";":
+            xxx
+        elif token[0] == "{":
+            if self.current_rule().name in ["media"]:  # rule-filled
+                self.mode = RULE_MODE
+            else:
+                xxx
+        elif token[0] == "EOF":
+            xxx
+        else:
+            xxx
+    
+    def rule_mode(self):
+        token = self.consume_next_input_token()
+        
+        if token[0] == "whitespace":
+            pass
+        elif token[0] == "}":
+            self.pop_current_rule()
+            self.switch_to_current_rule_content_mode()
+        elif token[0] == "at":
+            xxx
+        elif token[0] == "EOF":
+            xxx
+        else:
+            xxx
+        
     def selector_mode(self):
         token = self.consume_next_input_token()
         
