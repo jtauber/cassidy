@@ -214,11 +214,17 @@ class Parser:
 
 
 if __name__ == "__main__":
-    p = Parser(list(tokenize("""
-    p > a {
-        color: blue;
-        text-decoration: underline;
-    }
-    """)))
-    p.parse()
-    p.open_rule_stack[0].pretty_print()
+    # from tabatkins/css-parser
+    tests = [
+        "foo { bar: baz; }",
+        "foo { bar: rgb(255, 0, 127); }",
+        "#foo {}",
+        "@media{ }",
+    ]
+    
+    for test in tests:
+        print
+        print test
+        p = Parser(list(tokenize(test)))
+        p.parse()
+        p.open_rule_stack[0].pretty_print()
