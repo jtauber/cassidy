@@ -31,7 +31,16 @@ class AtRule:
         self.name = name
         self.prelude = []
         self.value = []
-
+    
+    @property
+    def content_mode(self):
+        if self.name in ["media"]:  # rule-filled
+            return RULE_MODE
+        elif self.name in ["page"]:  # declaration-filled
+            return DECLARATION_MODE
+        else:
+            xxx
+    
     def pretty_print(self, indent):
         i = "  " * indent
         print i, "AtRule:"
@@ -166,16 +175,20 @@ class Parser:
         token = self.consume_next_input_token()
         
         if token[0] == ";":
-            xxx
+            self.pop_current_rule()
+            self.switch_to_current_rule_content_mode()
         elif token[0] == "{":
             if self.current_rule().name in ["media"]:  # rule-filled
                 self.mode = RULE_MODE
+            elif self.current_rule().name in ["page"]:  # declaration-filled
+                self.mode = DECLARATION_MODE
             else:
+                # @@@ parse error
                 xxx
         elif token[0] == "EOF":
             xxx
         else:
-            xxx
+            self.current_rule().prelude.append(self.consume_primitive(token))
     
     def rule_mode(self):
         token = self.consume_next_input_token()

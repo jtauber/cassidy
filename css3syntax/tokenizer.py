@@ -393,11 +393,26 @@ def tokenize(s):
             elif ch == "-":
                 xxx
             elif is_name_start_character(ch):
-                xxx
+                tmp_dimension = (int(tmp_number), ch)  # @@@ int for now
+                state = DIMENSION_STATE
             elif ch == "\\":
                 xxx
             else:
                 yield ("number", int(tmp_number))  # @@@ int for now
+                state = DATA_STATE
+                index -= 1
+        # NUMBER_FRACTION_STATE
+        elif state == DIMENSION_STATE:
+            ch = s[index]
+            index += 1
+            if is_name_character(ch):
+                num, unit = tmp_dimension
+                unit += ch
+                tmp_dimension = num, unit
+            elif ch == "\\":
+                xxx
+            else:
+                yield ("dimension", tmp_dimension[0], tmp_dimension[1])
                 state = DATA_STATE
                 index -= 1
         else:
