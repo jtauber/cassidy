@@ -72,6 +72,12 @@ class Primitive:
         print i, self.primitive
 
 
+class Function:
+    def __init__(self, name):
+        self.name = name
+        self.arguments = []
+
+
 # NOTE: the goal of this parser is not to be elegant or fast but rather to
 # follow the spec as much as possible
 
@@ -205,6 +211,20 @@ class Parser:
         else:
             return Primitive(token)
     
+    def consume_function(self, token):
+        function = Function(token[1])
+        current_argument = []
+        while True:
+            token = self.consume_next_input_token()
+            if token[0] == "EOF" or token[0] == ")":
+                function.arguments.append(current_argument)
+                return function
+            elif token == ("delim", ","):
+                function.arguments.append(current_argument)
+                current_argument = []
+            else:
+                current_argument.append(self.consume_primitive(token))
+    
     def switch_to_current_rule_content_mode(self):
         self.mode = self.current_rule().content_mode
     
@@ -225,6 +245,8 @@ if __name__ == "__main__":
     for test in tests:
         print
         print test
-        p = Parser(list(tokenize(test)))
+        tokens = list(tokenize(test))
+        print tokens
+        p = Parser(tokens)
         p.parse()
         p.open_rule_stack[0].pretty_print()
