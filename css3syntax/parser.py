@@ -203,7 +203,9 @@ class Parser:
         elif token[0] == "EOF":
             xxx
         else:
-            xxx
+            self.open_rule_stack.append(StyleRule())
+            self.mode = SELECTOR_MODE
+            self.reprocess_current_input_token()
         
     def selector_mode(self):
         token = self.consume_next_input_token()
