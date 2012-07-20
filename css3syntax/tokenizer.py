@@ -56,7 +56,7 @@ IDENTIFIER_STATE = 9
 IDENTIFIER_REST_STATE = 10
 TRANSFORM_FUNCTION_WHITESPACE_STATE = 11
 NUMBER_STATE = 12
-NUMBER_RESET_STATE = 13
+NUMBER_REST_STATE = 13
 NUMBER_FRACTION_STATE = 14
 DIMENSION_STATE = 15
 SCI_NOTATION_STATE = 16
@@ -349,6 +349,45 @@ def tokenize(s):
                     index -= 1
             else:
                 yield ("identifier", tmp_identifier)
+                state = DATA_STATE
+                index -= 1
+        # TRANSFORM_FUNCTION_WHITESPACE_STATE
+        elif state == NUMBER_STATE:
+            tmp_number = ""
+            ch = s[index]
+            index += 1
+            if ch == "-":
+                xxx
+            elif ch == "+":
+                xxx
+            elif is_digit(ch):
+                # @@@ current input character
+                tmp_number += ch
+                state = NUMBER_REST_STATE
+            elif ch == ".":
+                xxx
+            else:
+                state = DATA_STATE
+                index -= 1
+        elif state == NUMBER_REST_STATE:
+            ch = s[index]
+            index += 1
+            if is_digit(ch):
+                tmp_number += ch
+            elif ch == ".":
+                xxx
+            elif ch == "%":
+                xxx
+            elif ch.lower() == "e":
+                xxx
+            elif ch == "-":
+                xxx
+            elif is_name_start_character(ch):
+                xxx
+            elif ch == "\\":
+                xxx
+            else:
+                yield ("number", int(tmp_number))  # @@@ int for now
                 state = DATA_STATE
                 index -= 1
         else:
