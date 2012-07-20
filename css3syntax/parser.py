@@ -76,6 +76,16 @@ class Function:
     def __init__(self, name):
         self.name = name
         self.arguments = []
+    
+    def pretty_print(self, indent):
+        i = "  " * indent
+        print i, "Function:"
+        print i, "  Name:", self.name
+        print i, "  Arguments:"
+        for argument in self.arguments:
+            print i, "  -"
+            for item in argument:
+                item.pretty_print(indent + 2)
 
 
 # NOTE: the goal of this parser is not to be elegant or fast but rather to
