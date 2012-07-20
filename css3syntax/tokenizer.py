@@ -356,10 +356,11 @@ def tokenize(s):
             raise StopIteration
 
 
-for token in tokenize("""
-p > a {
-    color: blue;
-    text-decoration: underline;
-}
-"""):
-    print token
+if __name__ == "__main__":
+    for token in tokenize("""
+    p > a {
+        color: blue;
+        text-decoration: underline;
+    }
+    """):
+        print token
