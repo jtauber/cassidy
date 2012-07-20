@@ -9,6 +9,24 @@ tests = [
     "foo { bar: rgb(255, 0, 127); }",
     "#foo {}",
     "@media{ }",
+    """
+    p > a {
+        color: blue;
+        text-decoration: underline;
+    }
+    """,
+    """@import "my-styles.css";""",
+    """
+    @page :left {
+        margin-left: 4cm;
+        margin-right: 3cm;
+    }
+    """,
+    """
+    @media print {
+        body { font-size: 10pt }
+    }
+    """,
 ]
 
 for test in tests:
