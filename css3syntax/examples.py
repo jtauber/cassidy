@@ -27,6 +27,11 @@ tests = [
         body { font-size: 10pt }
     }
     """,
+    """
+    body {
+        font-family: 'Helvetica Neue';
+    }
+    """,
 ]
 
 for test in tests:
