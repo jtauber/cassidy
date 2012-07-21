@@ -120,7 +120,9 @@ class Tokenizer:
             elif self.state == NUMBER_REST_STATE:
                 for token in self.number_rest_state():
                     yield token
-            # NUMBER_FRACTION_STATE
+            elif self.state == NUMBER_FRACTION_STATE:
+                for token in self.number_fraction_state():
+                    yield token
             elif self.state == DIMENSION_STATE:
                 for token in self.dimension_state():
                     yield token
@@ -461,16 +463,49 @@ class Tokenizer:
     def number_state(self):
         self.tmp_number = ""
         ch = self.consume_next_input_character()
+        chs = self.next_input_character(2)
         if ch == "-":
-            xxx
+            if is_digit(chs[0]):
+                self.index += 1
+                self.tmp_number += "-"
+                self.tmp_number += chs[0]
+                self.state = NUMBER_REST_STATE
+            elif chs[0] == "." and is_digit(chs[1]):
+                self.index += 2
+                self.tmp_number += "-"
+                self.tmp_number += "."
+                self.tmp_number += chs[1]
+                self.state = NUMBER_FRACTION_STATE
+            else:
+                self.state = DATA_STATE
+                self.reconsume_input_character()
         elif ch == "+":
-            xxx
+            if is_digit(chs[0]):
+                self.index += 1
+                self.tmp_number += "+"
+                self.tmp_number += chs[0]
+                self.state = NUMBER_REST_STATE
+            elif chs[0] == "." and is_digit(chs[1]):
+                self.index += 2
+                self.tmp_number += "+"
+                self.tmp_number += "."
+                self.tmp_number += chs[1]
+                self.state = NUMBER_FRACTION_STATE
+            else:
+                self.state = DATA_STATE
+                self.reconsume_input_character()
         elif is_digit(ch):
-            # @@@ current input character
             self.tmp_number += ch
             self.state = NUMBER_REST_STATE
         elif ch == ".":
-            xxx
+            if is_digit(chs[0]):
+                self.index += 1
+                self.tmp_number += "."
+                self.tmp_number += chs[0]
+                self.state = NUMBER_FRACTION_STATE
+            else:
+                self.state = DATA_STATE
+                self.reconsume_input_character()
         else:
             self.state = DATA_STATE
             self.reconsume_input_character()
@@ -478,14 +513,27 @@ class Tokenizer:
     
     def number_rest_state(self):
         ch = self.consume_next_input_character()
+        chs = self.next_input_character(2)
         if is_digit(ch):
             self.tmp_number += ch
         elif ch == ".":
-            xxx
+            if is_digit(chs[0]):
+                self.index += 1
+                self.tmp_number += "."
+                self.tmp_number += chs[0]
+                self.state = NUMBER_FRACTION_STATE
+            else:
+                yield ("number", int(self.tmp_number))
+                self.state = DATA_STATE
+                self.reconsume_input_character()
         elif ch == "%":
             xxx
         elif ch.lower() == "e":
-            xxx
+            if not self.supports_scientific_notation:
+                self.tmp_dimension = (int(self.tmp_number), ch)  # @@@ int for now
+                self.state = DIMENSION_STATE
+            else:
+                xxx
         elif ch == "-":
             xxx
         elif is_name_start_character(ch):
@@ -498,6 +546,33 @@ class Tokenizer:
             self.state = DATA_STATE
             self.reconsume_input_character()
     
+    def number_fraction_state(self):
+        ch = self.consume_next_input_character()
+        if is_digit(ch):
+            self.tmp_number += ch
+        elif ch == ".":
+            yield ("number", float(self.tmp_number))
+            self.state = DATA_STATE
+            self.reconsume_input_character()
+        elif ch == "%":
+            xxx
+        elif ch.lower() == "e":
+            if not self.supports_scientific_notation:
+                self.tmp_dimension = (float(self.tmp_number), ch)
+                self.state = DIMENSION_STATE
+            else:
+                xxx
+        elif ch == "-":
+            xxx
+        elif is_name_start_character(ch):
+            xxx
+        elif ch == "\\":
+            xxx
+        else:
+            yield ("number", float(self.tmp_number))
+            self.state = DATA_STATE
+            self.reconsume_input_character()
+        
     def dimension_state(self):
         ch = self.consume_next_input_character()
         if is_name_character(ch):

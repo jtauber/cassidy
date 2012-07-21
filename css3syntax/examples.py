@@ -35,6 +35,13 @@ tests = [
     """
     /* a comment */
     """,
+    """
+    p.lead {
+        margin: 1em 10px +5px -10px;
+        padding: .5em;
+        line-height: 1.5;
+    }
+    """,
 ]
 
 for test in tests:
