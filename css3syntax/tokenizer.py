@@ -189,7 +189,7 @@ class Tokenizer:
         elif ch == "-":
             chs = self.next_input_character(2)
             if chs == "->":
-                yield ("CDC",)
+                yield ("cdc",)
                 self.index += 2
             elif is_digit(chs[0]) or (chs[0] == "." and is_digit(chs[1])):
                 self.state = NUMBER_STATE
