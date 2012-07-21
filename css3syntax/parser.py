@@ -171,7 +171,7 @@ class Parser:
     def at_rule_mode(self):
         token = self.consume_next_input_token()
         
-        if token[0] == ";":
+        if token[0] == "semicolon":
             self.pop_current_rule()
             self.switch_to_current_rule_content_mode()
         elif token[0] == "{":
@@ -218,7 +218,7 @@ class Parser:
     def declaration_mode(self):
         token = self.consume_next_input_token()
         
-        if token[0] == "whitespace" or token[0] == ";":
+        if token[0] == "whitespace" or token[0] == "semicolon":
             pass
         elif token[0] == "}":
             self.pop_current_rule()
@@ -242,7 +242,7 @@ class Parser:
             pass
         elif token[0] == "colon":
             self.mode = DECLARATION_VALUE_MODE
-        elif token[0] == ";":
+        elif token[0] == "semicolon":
             # @@@ parse error
             self.current_declaration = None
             self.switch_to_current_rule_content_mode()
@@ -259,7 +259,7 @@ class Parser:
         
         if token == ("delim", "!"):
             xxx
-        elif token[0] == ";":
+        elif token[0] == "semicolon":
             # @@@ if grammatically valid
             self.current_rule().value.append(self.current_declaration)
             self.switch_to_current_rule_content_mode()

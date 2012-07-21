@@ -214,7 +214,7 @@ class Tokenizer:
         elif ch == ":":
             yield ("colon",)
         elif ch == ";":
-            yield (";",)
+            yield ("semicolon",)
         elif ch == "<":
             chs = self.next_input_character(3)
             if chs == "!--":
