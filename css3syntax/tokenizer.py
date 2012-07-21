@@ -76,6 +76,7 @@ class Tokenizer:
         self.s = s
         self.state = DATA_STATE
         self.tmp_string = None
+        self.supports_scientific_notation = False
         self.transform_function_whitespace = False
     
     def tokenize(self):
