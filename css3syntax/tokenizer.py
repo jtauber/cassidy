@@ -429,7 +429,7 @@ class Tokenizer:
         else:
             self.state = DATA_STATE
             self.reconsume_input_character()
-        return [] # @@@
+        return []  # @@@
     
     def identifier_rest_state(self):
         ch = self.consume_next_input_character()
