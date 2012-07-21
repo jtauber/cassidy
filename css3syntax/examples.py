@@ -32,6 +32,9 @@ tests = [
         font-family: 'Helvetica Neue';
     }
     """,
+    """
+    /* a comment */
+    """,
 ]
 
 for test in tests:

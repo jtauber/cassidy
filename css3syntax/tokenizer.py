@@ -361,6 +361,7 @@ class Tokenizer:
             self.reconsume_input_character()
         else:
             pass
+        return []  # @@@
     
     def at_keyword_state(self):
         ch = self.consume_next_input_character()
