@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from tokenizer import tokenize
+from tokenizer import Tokenizer
 from parser import Parser
 
 # from tabatkins/css-parser
@@ -32,7 +32,8 @@ tests = [
 for test in tests:
     print
     print test
-    tokens = list(tokenize(test))
+    t = Tokenizer(test)
+    tokens = list(t.tokenize())
     print tokens
     p = Parser(tokens)
     p.parse()

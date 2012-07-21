@@ -1,6 +1,3 @@
-from tokenizer import tokenize
-
-
 TOP_LEVEL_MODE = 1
 AT_RULE_MODE = 2
 RULE_MODE = 3

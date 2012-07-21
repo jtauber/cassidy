@@ -69,352 +69,418 @@ BAD_URL_STATE = 22
 UNICODE_RANGE_STATE = 23
 
 
-def tokenize(s):
-    index = 0
-    state = DATA_STATE
-    tmp_string = None
-    transform_function_whitespace = False
+class Tokenizer:
     
-    while index < len(s):
-        if state == DATA_STATE:
-            ch = s[index]
-            index += 1
-            if is_whitespace(ch):
-                while index < len(s) and is_whitespace(s[index]):
-                    index += 1
-                yield ("whitespace",)
-            elif ch == "\"":
-                state = DOUBLE_QUOTE_STRING_STATE
-            elif ch == "#":
-                state = HASH_STATE
-            elif ch == "'":
-                state = SINGLE_QUOTE_STRING_STATE
-            elif ch == "(":
-                yield ("(",)
-            elif ch == ")":
-                yield (")",)
-            elif ch == "+":
-                if is_digit(s[index]) or s[index] == "." and is_digit(s[index + 1]):
-                    state = NUMBER_STATE
-                    index -= 1
-            elif ch == "-":
-                if s[index:index + 2] == "->":
-                    yield ("CDC",)
-                    index += 2
-                elif is_digit(s[index]) or s[index] == "." and is_digit(s[index + 1]):
-                    state = NUMBER_STATE
-                    index -= 1
-                elif is_name_start_character(s[index]):
-                    state = IDENTIFIER_STATE
-                    index -= 1
-                else:
-                    yield ("delim", "-")
-            elif ch == ".":
-                if is_digit(s[index]):
-                    state = NUMBER_STATE
-                    index -= 1
-                else:
-                    yield ("delim", ".")
-            elif ch == "/":
-                if s[index] == "*":
-                    index += 1
-                    state = COMMENT_STATE
-                else:
-                    yield ("delim", "/")
-            elif ch == ":":
-                yield ("colon",)
-            elif ch == ";":
-                yield (";",)
-            elif ch == "<":
-                if s[index:index + 3] == "!--":
-                    index += 3
-                    yield ("cdo",)
-                else:
-                    yield ("delim", "<")
-            elif ch == "@":
-                state = AT_KEYWORD_STATE
-            elif ch == "[":
-                yield ("[",)
-            elif ch == "\\":
-                if index > len(s) or is_newline(s[index]):
-                    # @@@ parse error
-                    yield ("delim", "\\")
-                else:
-                    state = IDENTIFIER_STATE
-                    index -= 1
-            elif ch == "]":
-                yield ("]",)
-            elif ch == "{":
-                yield ("{",)
-            elif ch == "}":
-                yield ("}",)
-            elif is_digit(ch):
-                state = NUMBER_STATE
-                index -= 1
-            elif ch == "U" or ch == "u":
-                if s[index] == "+" and is_hex_digit(s[index + 1]):
-                    index += 1
-                    state = UNICODE_RANGE_STATE
-                elif s[index:index + 3].lower() == "rl(":
-                    index += 3
-                    state = URL_STATE
-                else:
-                    state = IDENTIFIER_STATE
-                    index -= 1
-            elif is_name_start_character(ch):
-                state = IDENTIFIER_STATE
-                index -= 1
-            elif index > len(s):
-                yield ("EOF",)
+    def __init__(self, s):
+        self.index = 0
+        self.s = s
+        self.state = DATA_STATE
+        self.tmp_string = None
+        self.transform_function_whitespace = False
+    
+    def tokenize(self):
+        while self.index < len(self.s):
+            if self.state == DATA_STATE:
+                for token in self.data_state():
+                    yield token
+            elif self.state == DOUBLE_QUOTE_STRING_STATE:
+                for token in self.double_quote_string_state():
+                    yield token
+            elif self.state == SINGLE_QUOTE_STRING_STATE:
+                for token in self.single_quote_string_state():
+                    yield token
+            elif self.state == HASH_STATE:
+                for token in self.hash_state():
+                    yield token
+            elif self.state == HASH_REST_STATE:
+                for token in self.hash_rest_state():
+                    yield token
+            elif self.state == COMMENT_STATE:
+                for token in self.comment_state():
+                    yield token
+            elif self.state == AT_KEYWORD_STATE:
+                for token in self.at_keyword_state():
+                    yield token
+            elif self.state == AT_KEYWORD_REST_STATE:
+                for token in self.at_keyword_rest_state():
+                    yield token
+            elif self.state == IDENTIFIER_STATE:
+                for token in self.identifier_state():
+                    yield token
+            elif self.state == IDENTIFIER_REST_STATE:
+                for token in self.identifier_rest_state():
+                    yield token
+            # TRANSFORM_FUNCTION_WHITESPACE_STATE
+            elif self.state == NUMBER_STATE:
+                for token in self.number_state():
+                    yield token
+            elif self.state == NUMBER_REST_STATE:
+                for token in self.number_rest_state():
+                    yield token
+            # NUMBER_FRACTION_STATE
+            elif self.state == DIMENSION_STATE:
+                for token in self.dimension_state():
+                    yield token
             else:
-                yield ("delim", ch)
-        elif state == DOUBLE_QUOTE_STRING_STATE:
-            if tmp_string is None:
-                tmp_string = ""
-            ch = s[index]
-            index += 1
-            if ch == "\"":
-                yield ("string", tmp_string)
-                tmp_string = None
-                state = DATA_STATE
-            elif index > len(s):
-                yield ("EOF", )
-            elif is_newline(ch):
+                raise Exception("UNKNOWN STATE %s" % self.state)
+    
+    def consume_next_input_character(self):
+        ch = self.s[self.index]
+        self.index += 1
+        return ch
+    
+    def consume_whitespace(self):
+        while self.index < len(self.s) and is_whitespace(self.s[self.index]):
+            self.index += 1
+    
+    def next_input_character(self, size=1):
+        return self.s[self.index:self.index + size]
+    
+    def reconsume_input_character(self):
+        self.index -= 1
+    
+    def data_state(self):
+        ch = self.consume_next_input_character()
+        
+        if is_whitespace(ch):
+            self.consume_whitespace()
+            yield ("whitespace",)
+        elif ch == "\"":
+            self.state = DOUBLE_QUOTE_STRING_STATE
+        elif ch == "#":
+            self.state = HASH_STATE
+        elif ch == "'":
+            self.state = SINGLE_QUOTE_STRING_STATE
+        elif ch == "(":
+            yield ("(",)
+        elif ch == ")":
+            yield (")",)
+        elif ch == "+":
+            chs = self.next_input_character(2)
+            if is_digit(chs[0]) or (chs[0] == "." and is_digit(chs[1])):
+                self.state = NUMBER_STATE
+                self.reconsume_input_character()
+        elif ch == "-":
+            chs = self.next_input_character(2)
+            if chs == "->":
+                yield ("CDC",)
+                self.index += 2
+            elif is_digit(chs[0]) or (chs[0] == "." and is_digit(chs[1])):
+                self.state = NUMBER_STATE
+                self.reconsume_input_character()
+            elif is_name_start_character(chs[0]):
+                self.state = IDENTIFIER_STATE
+                self.reconsume_input_character()
+            else:
+                yield ("delim", "-")
+        elif ch == ".":
+            if is_digit(self.next_input_character()):
+                self.state = NUMBER_STATE
+                self.reconsume_input_character()
+            else:
+                yield ("delim", ".")
+        elif ch == "/":
+            if self.next_input_character() == "*":
+                self.index += 1
+                self.state = COMMENT_STATE
+            else:
+                yield ("delim", "/")
+        elif ch == ":":
+            yield ("colon",)
+        elif ch == ";":
+            yield (";",)
+        elif ch == "<":
+            chs = self.next_input_character(3)
+            if chs == "!--":
+                self.index += 3
+                yield ("cdo",)
+            else:
+                yield ("delim", "<")
+        elif ch == "@":
+            self.state = AT_KEYWORD_STATE
+        elif ch == "[":
+            yield ("[",)
+        elif ch == "\\":
+            if self.index > len(self.s) or is_newline(self.next_input_character()):
+                # @@@ parse error
+                yield ("delim", "\\")
+            else:
+                self.state = IDENTIFIER_STATE
+                self.reconsume_input_character()
+        elif ch == "]":
+            yield ("]",)
+        elif ch == "{":
+            yield ("{",)
+        elif ch == "}":
+            yield ("}",)
+        elif is_digit(ch):
+            self.state = NUMBER_STATE
+            self.reconsume_input_character()
+        elif ch == "U" or ch == "u":
+            chs = self.next_input_character(3)
+            if chs[0] == "+" and is_hex_digit(chs[1]):
+                self.index += 1
+                self.state = UNICODE_RANGE_STATE
+            elif chs.lower() == "rl(":
+                self.index += 3
+                self.state = URL_STATE
+            else:
+                self.state = IDENTIFIER_STATE
+                self.reconsume_input_character()
+        elif is_name_start_character(ch):
+            self.state = IDENTIFIER_STATE
+            self.reconsume_input_character()
+        elif self.index > len(self.s):
+            yield ("EOF",)
+        else:
+            yield ("delim", ch)
+    
+    def double_quote_string_state(self):
+        if self.tmp_string is None:
+            self.tmp_string = ""
+        ch = self.consume_next_input_character()
+        if ch == "\"":
+            yield ("string", self.tmp_string)
+            self.tmp_string = None
+            self.state = DATA_STATE
+        elif self.index > len(self.s):
+            yield ("EOF", )
+        elif is_newline(ch):
+            # @@@ parse error
+            yield ("bad-string",)
+            self.state = DATA_STATE
+            self.reconsume_input_character()
+        elif ch == "\\":
+            if self.index > len(self.s):
                 # @@@ parse error
                 yield ("bad-string",)
-                state = DATA_STATE
-                index -= 1
-            elif ch == "\\":
-                if index > len(s):
-                    # @@@ parse error
-                    yield ("bad-string",)
-                    state = DATA_STATE
-                elif is_newline(s[index]):
-                    index += 1
-                else:
-                    # consume an escaped character
-                    pass  # @@@ TODO
+                self.state = DATA_STATE
+            elif is_newline(self.next_input_character()):
+                self.index += 1
             else:
-                tmp_string += ch
-        elif state == SINGLE_QUOTE_STRING_STATE:
-            if tmp_string is None:
-                tmp_string = ""
-            ch = s[index]
-            index += 1
-            if ch == "'":
-                yield ("string", tmp_string)
-                tmp_string = None
-                state = DATA_STATE
-            elif index > len(s):
-                yield ("EOF", )
-            elif is_newline(ch):
+                # consume an escaped character
+                pass  # @@@ TODO
+        else:
+            self.tmp_string += ch
+    
+    def single_quote_string_state(self):
+        if self.tmp_string is None:
+            self.tmp_string = ""
+        ch = self.consume_next_input_character()
+        if ch == "'":
+            yield ("string", self.tmp_string)
+            self.tmp_string = None
+            self.state = DATA_STATE
+        elif self.index > len(self.s):
+            yield ("EOF", )
+        elif is_newline(ch):
+            # @@@ parse error
+            yield ("bad-string",)
+            self.state = DATA_STATE
+            self.reconsume_input_character()
+        elif ch == "\\":
+            if self.index > len(self.s):
                 # @@@ parse error
                 yield ("bad-string",)
-                state = DATA_STATE
-                index -= 1
-            elif ch == "\\":
-                if index > len(s):
-                    # @@@ parse error
-                    yield ("bad-string",)
-                    state = DATA_STATE
-                elif is_newline(s[index]):
-                    index += 1
-                else:
-                    # consume an escaped character
-                    pass  # @@@ TODO
+                self.state = DATA_STATE
+            elif is_newline(self.next_input_character()):
+                self.index += 1
             else:
-                tmp_string += ch
-        elif state == HASH_STATE:
-            ch = s[index]
-            index += 1
-            if is_name_character(ch):
-                tmp_hash = ch
-                state = HASH_REST_STATE
-            elif ch == "\\":
-                if index > len(s) or is_newline(s[index]):
-                    yield ("delim", "#")
-                    state = DATA_STATE
-                    index -= 1
-                else:
-                    # consume an escaped character
-                    pass  # @@@ TODO
-            else:
+                # consume an escaped character
+                pass  # @@@ TODO
+        else:
+            self.tmp_string += ch
+    
+    def hash_state(self):
+        ch = self.consume_next_input_character()
+        if is_name_character(ch):
+            self.tmp_hash = ch
+            self.state = HASH_REST_STATE
+        elif ch == "\\":
+            if self.index > len(self.s) or is_newline(self.next_input_character()):
                 yield ("delim", "#")
-                state = DATA_STATE
-                index -= 1
-        elif state == HASH_REST_STATE:
-            ch = s[index]
-            index += 1
-            if is_name_character(ch):
-                tmp_hash += ch
-            elif ch == "\\":
-                if index > len(s) or is_newline(s[index]):
-                    yield ("hash", tmp_hash)
-                    state = DATA_STATE
-                    index -= 1
-                else:
-                    # consume an escaped character
-                    pass  # @@@ TODO
+                self.state = DATA_STATE
+                self.reconsume_input_character()
             else:
-                yield ("hash", tmp_hash)
-                state = DATA_STATE
-                index -= 1
-        elif state == COMMENT_STATE:
-            ch = s[index]
-            index += 1
-            if ch == "*":
-                if s[index] == "/":
-                    index += 1
-                    state = DATA_STATE
-                else:
-                    pass
-            elif index > len(s):
-                # @@@ parse error
-                state = DATA_STATE
-                index -= 1
+                # consume an escaped character
+                pass  # @@@ TODO
+        else:
+            yield ("delim", "#")
+            self.state = DATA_STATE
+            self.reconsume_input_character()
+    
+    def hash_rest_state(self):
+        ch = self.consume_next_input_character()
+        if is_name_character(ch):
+            self.tmp_hash += ch
+        elif ch == "\\":
+            if self.index > len(self.s) or is_newline(self.next_input_character()):
+                yield ("hash", self.tmp_hash)
+                self.state = DATA_STATE
+                self.reconsume_input_character()
+            else:
+                # consume an escaped character
+                pass  # @@@ TODO
+        else:
+            yield ("hash", self.tmp_hash)
+            self.state = DATA_STATE
+            self.reconsume_input_character()
+    
+    def comment_state(self):
+        ch = self.consume_next_input_character()
+        if ch == "*":
+            if self.next_input_character() == "/":
+                self.index += 1
+                self.state = DATA_STATE
             else:
                 pass
-        elif state == AT_KEYWORD_STATE:
-            ch = s[index]
-            index += 1
-            if ch == "-":
-                if is_name_start_character(s[index]):
-                    tmp_at_keyword = "-" + s[index]
-                    index += 1
-                    state = AT_KEYWORD_REST_STATE
-                else:
-                    yield ("delim", "@")
-                    state = DATA_STATE
-                    index -= 1
-            elif is_name_start_character(ch):
-                tmp_at_keyword = ch
-                state = AT_KEYWORD_REST_STATE
-            elif ch == "\\":
-                if index > len(s) or is_newline(s[index]):
-                    yield ("delim", "@")
-                    state = DATA_STATE
-                    index -= 1
-                else:
-                    # consume an escaped character
-                    pass  # @@@ TODO
+        elif self.index > len(self.s):
+            # @@@ parse error
+            self.state = DATA_STATE
+            self.reconsume_input_character()
+        else:
+            pass
+    
+    def at_keyword_state(self):
+        ch = self.consume_next_input_character()
+        ch2 = self.next_input_character()
+        if ch == "-":
+            if is_name_start_character(ch2):
+                self.tmp_at_keyword = "-" + ch2
+                self.index += 1
+                self.state = AT_KEYWORD_REST_STATE
             else:
                 yield ("delim", "@")
-                state = DATA_STATE
-                index -= 1
-        elif state == AT_KEYWORD_REST_STATE:
-            ch = s[index]
-            index += 1
-            if is_name_character(ch):
-                tmp_at_keyword += ch
-            elif ch == "\\":
-                xxx
+                self.state = DATA_STATE
+                self.reconsume_input_character()
+        elif is_name_start_character(ch):
+            self.tmp_at_keyword = ch
+            self.state = AT_KEYWORD_REST_STATE
+        elif ch == "\\":
+            if self.index > len(self.s) or is_newline(ch2):
+                yield ("delim", "@")
+                self.state = DATA_STATE
+                self.reconsume_input_character()
             else:
-                yield ("at", tmp_at_keyword)
-                state = DATA_STATE
-                index -= 1
-        elif state == IDENTIFIER_STATE:
-            ch = s[index]
-            index += 1
-            if ch == "-":
-                if is_name_start_character(s[index]):
-                    tmp_identifier = "-"
-                    state = IDENTIFIER_REST_STATE
-                else:
-                    state = DATA_STATE
-                    index -= 1
-            elif is_name_start_character(ch):
-                tmp_identifier = ch
-                state = IDENTIFIER_REST_STATE
-            elif ch == "\\":
-                if index > len(s) or is_newline(s[index]):
-                    state = DATA_STATE
-                    index -= 1
-                else:
-                    # consume an escaped character
-                    pass  # @@@ TODO
-            else:
-                state = DATA_STATE
-                index -= 1
-        elif state == IDENTIFIER_REST_STATE:
-            ch = s[index]
-            index += 1
-            if is_name_character(ch):
-                tmp_identifier += ch
-            elif ch == "\\":
-                if index > len(s) or is_newline(s[index]):
-                    state = DATA_STATE
-                    index -= 1
-                else:
-                    # consume an escaped character
-                    pass  # @@@ TODO
-            elif ch == "(":
-                yield ("function", tmp_identifier)
-                state = DATA_STATE
-            elif is_whitespace(ch):
-                if transform_function_whitespace:
-                    state = TRANSFORM_FUNCTION_WHITESPACE_STATE
-                else:
-                    yield ("identifier", tmp_identifier)
-                    state = DATA_STATE
-                    index -= 1
-            else:
-                yield ("identifier", tmp_identifier)
-                state = DATA_STATE
-                index -= 1
-        # TRANSFORM_FUNCTION_WHITESPACE_STATE
-        elif state == NUMBER_STATE:
-            tmp_number = ""
-            ch = s[index]
-            index += 1
-            if ch == "-":
-                xxx
-            elif ch == "+":
-                xxx
-            elif is_digit(ch):
-                # @@@ current input character
-                tmp_number += ch
-                state = NUMBER_REST_STATE
-            elif ch == ".":
-                xxx
-            else:
-                state = DATA_STATE
-                index -= 1
-        elif state == NUMBER_REST_STATE:
-            ch = s[index]
-            index += 1
-            if is_digit(ch):
-                tmp_number += ch
-            elif ch == ".":
-                xxx
-            elif ch == "%":
-                xxx
-            elif ch.lower() == "e":
-                xxx
-            elif ch == "-":
-                xxx
-            elif is_name_start_character(ch):
-                tmp_dimension = (int(tmp_number), ch)  # @@@ int for now
-                state = DIMENSION_STATE
-            elif ch == "\\":
-                xxx
-            else:
-                yield ("number", int(tmp_number))  # @@@ int for now
-                state = DATA_STATE
-                index -= 1
-        # NUMBER_FRACTION_STATE
-        elif state == DIMENSION_STATE:
-            ch = s[index]
-            index += 1
-            if is_name_character(ch):
-                num, unit = tmp_dimension
-                unit += ch
-                tmp_dimension = num, unit
-            elif ch == "\\":
-                xxx
-            else:
-                yield ("dimension", tmp_dimension[0], tmp_dimension[1])
-                state = DATA_STATE
-                index -= 1
+                # consume an escaped character
+                pass  # @@@ TODO
         else:
-            print "UNKNOWN STATE", state
-            raise StopIteration
+            yield ("delim", "@")
+            self.state = DATA_STATE
+            self.reconsume_input_character()
+    
+    def at_keyword_rest_state(self):
+        ch = self.consume_next_input_character()
+        if is_name_character(ch):
+            self.tmp_at_keyword += ch
+        elif ch == "\\":
+            xxx
+        else:
+            yield ("at", self.tmp_at_keyword)
+            self.state = DATA_STATE
+            self.reconsume_input_character()
+    
+    def identifier_state(self):
+        ch = self.consume_next_input_character()
+        chs = self.next_input_character()
+        if ch == "-":
+            if is_name_start_character(chs):
+                self.tmp_identifier = "-"
+                self.state = IDENTIFIER_REST_STATE
+            else:
+                self.state = DATA_STATE
+                self.reconsume_input_character()
+        elif is_name_start_character(ch):
+            self.tmp_identifier = ch
+            self.state = IDENTIFIER_REST_STATE
+        elif ch == "\\":
+            if self.index > len(self.s) or is_newline(chs):
+                self.state = DATA_STATE
+                self.reconsume_input_character()
+            else:
+                # consume an escaped character
+                pass  # @@@ TODO
+        else:
+            self.state = DATA_STATE
+            self.reconsume_input_character()
+        return [] # @@@
+    
+    def identifier_rest_state(self):
+        ch = self.consume_next_input_character()
+        chs = self.next_input_character()
+        if is_name_character(ch):
+            self.tmp_identifier += ch
+        elif ch == "\\":
+            if self.index > len(self.s) or is_newline(chs):
+                self.state = DATA_STATE
+                self.reconsume_input_character()
+            else:
+                # consume an escaped character
+                pass  # @@@ TODO
+        elif ch == "(":
+            yield ("function", self.tmp_identifier)
+            self.state = DATA_STATE
+        elif is_whitespace(ch):
+            if self.transform_function_whitespace:
+                self.state = TRANSFORM_FUNCTION_WHITESPACE_STATE
+            else:
+                yield ("identifier", self.tmp_identifier)
+                self.state = DATA_STATE
+                self.reconsume_input_character()
+        else:
+            yield ("identifier", self.tmp_identifier)
+            self.state = DATA_STATE
+            self.reconsume_input_character()
+    
+    def number_state(self):
+        self.tmp_number = ""
+        ch = self.consume_next_input_character()
+        if ch == "-":
+            xxx
+        elif ch == "+":
+            xxx
+        elif is_digit(ch):
+            # @@@ current input character
+            self.tmp_number += ch
+            self.state = NUMBER_REST_STATE
+        elif ch == ".":
+            xxx
+        else:
+            self.state = DATA_STATE
+            self.reconsume_input_character()
+        return []
+    
+    def number_rest_state(self):
+        ch = self.consume_next_input_character()
+        if is_digit(ch):
+            self.tmp_number += ch
+        elif ch == ".":
+            xxx
+        elif ch == "%":
+            xxx
+        elif ch.lower() == "e":
+            xxx
+        elif ch == "-":
+            xxx
+        elif is_name_start_character(ch):
+            self.tmp_dimension = (int(self.tmp_number), ch)  # @@@ int for now
+            self.state = DIMENSION_STATE
+        elif ch == "\\":
+            xxx
+        else:
+            yield ("number", int(self.tmp_number))  # @@@ int for now
+            self.state = DATA_STATE
+            self.reconsume_input_character()
+    
+    def dimension_state(self):
+        ch = self.consume_next_input_character()
+        if is_name_character(ch):
+            num, unit = self.tmp_dimension
+            unit += ch
+            self.tmp_dimension = num, unit
+        elif ch == "\\":
+            xxx
+        else:
+            yield ("dimension", self.tmp_dimension[0], self.tmp_dimension[1])
+            self.state = DATA_STATE
+            self.reconsume_input_character()
