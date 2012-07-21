@@ -44,6 +44,8 @@ def is_whitespace(ch):
     return is_newline(ch) or ch == "\t" or ch == " "
 
 
+MAXIMUM_ALLOWED_CODEPOINT = 0x10FFFF
+
 DATA_STATE = 1
 DOUBLE_QUOTE_STRING_STATE = 2
 SINGLE_QUOTE_STRING_STATE = 3
@@ -133,6 +135,27 @@ class Tokenizer:
     def consume_whitespace(self):
         while self.index < len(self.s) and is_whitespace(self.s[self.index]):
             self.index += 1
+    
+    def consume_escaped_character(self):
+        ch = self.consume_next_input_character()
+        if is_hex_digit(ch):
+            digits = ch
+            while len(digits) <= 6:
+                ch = self.consume_next_input_character()
+                if is_hex_digit(ch):
+                    digits += ch
+                elif is_whitespace(ch):
+                    pass
+                else:
+                    self.reconsume_input_character()
+                    break
+            code_point = int(digits, 16)
+            if code_point > MAXIMUM_ALLOWED_CODEPOINT:
+                return u"\uFFFD"
+            else:
+                return unichr(code_point)
+        else:
+            return ch
     
     def next_input_character(self, size=1):
         return self.s[self.index:self.index + size]
@@ -259,8 +282,7 @@ class Tokenizer:
             elif is_newline(self.next_input_character()):
                 self.index += 1
             else:
-                # consume an escaped character
-                pass  # @@@ TODO
+                self.tmp_string += self.consume_escaped_character()
         else:
             self.tmp_string += ch
     
@@ -287,8 +309,7 @@ class Tokenizer:
             elif is_newline(self.next_input_character()):
                 self.index += 1
             else:
-                # consume an escaped character
-                pass  # @@@ TODO
+                self.tmp_string += self.consume_escaped_character()
         else:
             self.tmp_string += ch
     
@@ -303,8 +324,8 @@ class Tokenizer:
                 self.state = DATA_STATE
                 self.reconsume_input_character()
             else:
-                # consume an escaped character
-                pass  # @@@ TODO
+                self.tmp_hash = self.consume_escaped_character()
+                self.state = HASH_REST_STATE
         else:
             yield ("delim", "#")
             self.state = DATA_STATE
@@ -320,8 +341,7 @@ class Tokenizer:
                 self.state = DATA_STATE
                 self.reconsume_input_character()
             else:
-                # consume an escaped character
-                pass  # @@@ TODO
+                self.tmp_hash += self.consume_escaped_character()
         else:
             yield ("hash", self.tmp_hash)
             self.state = DATA_STATE
@@ -363,8 +383,7 @@ class Tokenizer:
                 self.state = DATA_STATE
                 self.reconsume_input_character()
             else:
-                # consume an escaped character
-                pass  # @@@ TODO
+                self.tmp_at_keyword = self.consume_escaped_character()
         else:
             yield ("delim", "@")
             self.state = DATA_STATE
@@ -372,10 +391,16 @@ class Tokenizer:
     
     def at_keyword_rest_state(self):
         ch = self.consume_next_input_character()
+        ch2 = self.next_input_character()
         if is_name_character(ch):
             self.tmp_at_keyword += ch
         elif ch == "\\":
-            xxx
+            if self.index > len(self.s) or is_newline(ch2):
+                yield ("at", self.tmp_at_keyword)
+                self.state = DATA_STATE
+                self.reconsume_input_character()
+            else:
+                self.tmp_at_keyword += self.consume_escaped_character()
         else:
             yield ("at", self.tmp_at_keyword)
             self.state = DATA_STATE
@@ -399,8 +424,8 @@ class Tokenizer:
                 self.state = DATA_STATE
                 self.reconsume_input_character()
             else:
-                # consume an escaped character
-                pass  # @@@ TODO
+                self.tmp_identifier = self.consume_escaped_character()
+                self.state = IDENTIFIER_REST_STATE
         else:
             self.state = DATA_STATE
             self.reconsume_input_character()
@@ -416,8 +441,7 @@ class Tokenizer:
                 self.state = DATA_STATE
                 self.reconsume_input_character()
             else:
-                # consume an escaped character
-                pass  # @@@ TODO
+                self.tmp_identifier += self.consume_escaped_character()
         elif ch == "(":
             yield ("function", self.tmp_identifier)
             self.state = DATA_STATE
