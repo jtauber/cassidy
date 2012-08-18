@@ -44,6 +44,11 @@ tests = [
     """,
 ]
 
+# extras
+tests += [
+    "div p *[href] {}",
+]
+
 for test in tests:
     print
     print test

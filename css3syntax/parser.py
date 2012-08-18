@@ -108,6 +108,20 @@ class Function:
                 item.pretty_print(indent + 2)
 
 
+class SimpleBlock:
+    def __init__(self, associated_token):
+        self.associated_token = associated_token
+        self.value = []
+    
+    def pretty_print(self, indent):
+        i = "  " * indent
+        print i, "SimpleBlock:"
+        print i, "  AssociatedToken:", self.associated_token
+        print i, "  Value:"
+        for item in self.value:
+            item.pretty_print(indent + 2)
+
+
 # NOTE: the goal of this parser is not to be elegant or fast but rather to
 # follow the spec as much as possible
 
@@ -280,6 +294,19 @@ class Parser:
             return self.consume_function(token)
         else:
             return Primitive(token)
+    
+    def consume_simple_block(self, token):
+        ending_token = {
+            "[": "]",
+            # @@@
+        }[token[0]]
+        current_block = SimpleBlock(token)
+        while True:
+            token = self.consume_next_input_token()
+            if token[0] == "EOF" or token[0] == ending_token:
+                return current_block
+            else:
+                current_block.value.append(self.consume_primitive(token))
     
     def consume_function(self, token):
         function = Function(token[1])
