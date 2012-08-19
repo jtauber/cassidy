@@ -167,7 +167,6 @@ class Tokenizer:
     
     def data_state(self):
         ch = self.consume_next_input_character()
-        
         if is_whitespace(ch):
             self.consume_whitespace()
             yield ("whitespace",)
@@ -186,6 +185,8 @@ class Tokenizer:
             if is_digit(chs[0]) or (chs[0] == "." and is_digit(chs[1])):
                 self.state = NUMBER_STATE
                 self.reconsume_input_character()
+            else:
+                yield ("delim", "+")
         elif ch == "-":
             chs = self.next_input_character(2)
             if chs == "->":

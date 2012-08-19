@@ -47,6 +47,7 @@ tests = [
 # extras
 tests += [
     "div p *[href] {}",
+    "a + b {}",
 ]
 
 for test in tests:
