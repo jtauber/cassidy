@@ -174,3 +174,5 @@ assert Selector("span > em").parse() == ElementSelector("span").child(ElementSel
 assert Selector("div * p").parse() == ElementSelector("div").descendant(ElementSelector()).descendant(ElementSelector("p"))
 assert Selector("div p *[href]").parse() == ElementSelector("div").descendant(ElementSelector("p")).descendant(ElementSelector().attr("href"))
 assert Selector("math + p").parse() == ElementSelector("math").followed_by(ElementSelector("p"))
+
+print("all tests passed.")
