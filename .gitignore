@@ -2,3 +2,5 @@ __pycache__
 *.pyc
 .coverage
 htmlcov
+parser.out
+parsetab.py
