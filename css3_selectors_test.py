@@ -124,9 +124,11 @@ class Selector:
             else:
                 assert False
         elif len(block.value) == 3:
-            if (block.value[0].primitive[0] == "identifier" and
+            if (
+                block.value[0].primitive[0] == "identifier" and
                 block.value[1].primitive[0] == "delim" and
-                block.value[2].primitive[0] == "string"):
+                block.value[2].primitive[0] == "string"
+            ):
                 attr_selector = AttributeSelector(
                     block.value[0].primitive[1],
                     block.value[2].primitive[1],
@@ -135,10 +137,12 @@ class Selector:
             else:
                 assert False
         elif len(block.value) == 4:
-            if (block.value[0].primitive[0] == "identifier" and
+            if (
+                block.value[0].primitive[0] == "identifier" and
                 block.value[1].primitive[0] == "delim" and
                 block.value[2].primitive[0] == "delim" and
-                block.value[3].primitive[0] == "string"):
+                block.value[3].primitive[0] == "string"
+            ):
                 attr_selector = AttributeSelector(
                     block.value[0].primitive[1],
                     block.value[3].primitive[1],
