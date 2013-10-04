@@ -567,7 +567,8 @@ class Tokenizer:
         elif ch == "-":
             xxx
         elif is_name_start_character(ch):
-            xxx
+            self.tmp_dimension = (float(self.tmp_number), ch)
+            self.state = DIMENSION_STATE
         elif ch == "\\":
             xxx
         else:
