@@ -528,7 +528,8 @@ class Tokenizer:
                 self.state = DATA_STATE
                 self.reconsume_input_character()
         elif ch == "%":
-            xxx
+            yield ("percentage", int(self.tmp_number))
+            self.state = DATA_STATE
         elif ch.lower() == "e":
             if not self.supports_scientific_notation:
                 self.tmp_dimension = (int(self.tmp_number), ch)  # @@@ int for now
