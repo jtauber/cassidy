@@ -126,6 +126,10 @@ class Tokenizer:
             elif self.state == DIMENSION_STATE:
                 for token in self.dimension_state():
                     yield token
+            #
+            elif self.state == URL_STATE:
+                for token in self.url_state():
+                    yield token
             else:
                 raise Exception("UNKNOWN STATE %s" % self.state)
     
