@@ -15,7 +15,7 @@ FOLLOWED_BY_MODE = 4
 
 
 class Selector:
-    
+
     def __init__(self, s):
         p = Parser(list(Tokenizer(s + "{}").tokenize()))
         p.parse()
@@ -23,17 +23,17 @@ class Selector:
         self.index = 0
         self.mode = TOP_LEVEL_MODE
         self.current_selector = None
-    
+
     def consume_next_primitive(self):
         primitive = self.primitives[self.index]
         self.index += 1
         if isinstance(primitive, Primitive) and primitive.primitive[0] == "whitespace":
             return self.consume_next_primitive()
         return primitive
-    
+
     def reprocess_current_primitive(self):
         self.index -= 1
-    
+
     def parse(self):
         while self.index < len(self.primitives):
             if self.mode == TOP_LEVEL_MODE:
@@ -49,12 +49,12 @@ class Selector:
             else:
                 print "UNKNOWN MODE", self.mode
                 quit()
-        
+
         return self.current_selector
-    
+
     def top_level_mode(self):
         primitive = self.consume_next_primitive()
-        
+
         if isinstance(primitive, Primitive):
             if primitive.primitive[0] == "identifier":
                 self.current_selector = ElementSelector(primitive.primitive[1])
@@ -72,10 +72,10 @@ class Selector:
                 assert False
         else:
             assert False
-    
+
     def element_mode(self):
         primitive = self.consume_next_primitive()
-        
+
         if isinstance(primitive, SimpleBlock):
             if primitive.associated_token == ("[",):
                 self.reprocess_current_primitive()
@@ -95,23 +95,23 @@ class Selector:
                 assert False
         else:
             assert False
-    
+
     def child_mode(self):
         primitive = self.consume_next_primitive()
-        
+
         if isinstance(primitive, Primitive) and primitive.primitive[0] == "identifier":
             self.current_selector = self.current_selector.child(ElementSelector(primitive.primitive[1]))
         else:
             assert False
-    
+
     def followed_by_mode(self):
         primitive = self.consume_next_primitive()
-        
+
         if isinstance(primitive, Primitive) and primitive.primitive[0] == "identifier":
             self.current_selector = self.current_selector.followed_by(ElementSelector(primitive.primitive[1]))
         else:
             assert False
-    
+
     def attribute_mode(self):
         block = self.consume_next_primitive()
         if len(block.value) == 1:

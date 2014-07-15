@@ -72,7 +72,7 @@ UNICODE_RANGE_STATE = 23
 
 
 class Tokenizer:
-    
+
     def __init__(self, s):
         self.index = 0
         self.s = s
@@ -80,7 +80,7 @@ class Tokenizer:
         self.tmp_string = None
         self.supports_scientific_notation = False
         self.transform_function_whitespace = False
-    
+
     def tokenize(self):
         while self.index < len(self.s):
             if self.state == DATA_STATE:
@@ -132,16 +132,16 @@ class Tokenizer:
                     yield token
             else:
                 raise Exception("UNKNOWN STATE %s" % self.state)
-    
+
     def consume_next_input_character(self):
         ch = self.s[self.index]
         self.index += 1
         return ch
-    
+
     def consume_whitespace(self):
         while self.index < len(self.s) and is_whitespace(self.s[self.index]):
             self.index += 1
-    
+
     def consume_escaped_character(self):
         ch = self.consume_next_input_character()
         if is_hex_digit(ch):
@@ -162,13 +162,13 @@ class Tokenizer:
                 return unichr(code_point)
         else:
             return ch
-    
+
     def next_input_character(self, size=1):
         return self.s[self.index:self.index + size]
-    
+
     def reconsume_input_character(self):
         self.index -= 1
-    
+
     def data_state(self):
         ch = self.consume_next_input_character()
         if is_whitespace(ch):
@@ -265,7 +265,7 @@ class Tokenizer:
             yield ("EOF",)
         else:
             yield ("delim", ch)
-    
+
     def double_quote_string_state(self):
         if self.tmp_string is None:
             self.tmp_string = ""
@@ -292,7 +292,7 @@ class Tokenizer:
                 self.tmp_string += self.consume_escaped_character()
         else:
             self.tmp_string += ch
-    
+
     def single_quote_string_state(self):
         if self.tmp_string is None:
             self.tmp_string = ""
@@ -319,7 +319,7 @@ class Tokenizer:
                 self.tmp_string += self.consume_escaped_character()
         else:
             self.tmp_string += ch
-    
+
     def hash_state(self):
         ch = self.consume_next_input_character()
         if is_name_character(ch):
@@ -337,7 +337,7 @@ class Tokenizer:
             yield ("delim", "#")
             self.state = DATA_STATE
             self.reconsume_input_character()
-    
+
     def hash_rest_state(self):
         ch = self.consume_next_input_character()
         if is_name_character(ch):
@@ -353,7 +353,7 @@ class Tokenizer:
             yield ("hash", self.tmp_hash)
             self.state = DATA_STATE
             self.reconsume_input_character()
-    
+
     def comment_state(self):
         ch = self.consume_next_input_character()
         if ch == "*":
@@ -369,7 +369,7 @@ class Tokenizer:
         else:
             pass
         return []  # @@@
-    
+
     def at_keyword_state(self):
         ch = self.consume_next_input_character()
         ch2 = self.next_input_character()
@@ -396,7 +396,7 @@ class Tokenizer:
             yield ("delim", "@")
             self.state = DATA_STATE
             self.reconsume_input_character()
-    
+
     def at_keyword_rest_state(self):
         ch = self.consume_next_input_character()
         ch2 = self.next_input_character()
@@ -413,7 +413,7 @@ class Tokenizer:
             yield ("at", self.tmp_at_keyword)
             self.state = DATA_STATE
             self.reconsume_input_character()
-    
+
     def identifier_state(self):
         ch = self.consume_next_input_character()
         chs = self.next_input_character()
@@ -438,7 +438,7 @@ class Tokenizer:
             self.state = DATA_STATE
             self.reconsume_input_character()
         return []  # @@@
-    
+
     def identifier_rest_state(self):
         ch = self.consume_next_input_character()
         chs = self.next_input_character()
@@ -464,7 +464,7 @@ class Tokenizer:
             yield ("identifier", self.tmp_identifier)
             self.state = DATA_STATE
             self.reconsume_input_character()
-    
+
     def number_state(self):
         self.tmp_number = ""
         ch = self.consume_next_input_character()
@@ -515,7 +515,7 @@ class Tokenizer:
             self.state = DATA_STATE
             self.reconsume_input_character()
         return []
-    
+
     def number_rest_state(self):
         ch = self.consume_next_input_character()
         chs = self.next_input_character(2)
@@ -551,7 +551,7 @@ class Tokenizer:
             yield ("number", int(self.tmp_number))  # @@@ int for now
             self.state = DATA_STATE
             self.reconsume_input_character()
-    
+
     def number_fraction_state(self):
         ch = self.consume_next_input_character()
         if is_digit(ch):
@@ -579,7 +579,7 @@ class Tokenizer:
             yield ("number", float(self.tmp_number))
             self.state = DATA_STATE
             self.reconsume_input_character()
-        
+
     def dimension_state(self):
         ch = self.consume_next_input_character()
         if is_name_character(ch):

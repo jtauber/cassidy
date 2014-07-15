@@ -11,12 +11,12 @@ NEXT_DECLARATION_ERROR_MODE = 10
 
 
 class Stylesheet:
-    
+
     content_mode = TOP_LEVEL_MODE
-    
+
     def __init__(self):
         self.value = []
-    
+
     def pretty_print(self):
         print "Stylesheet:"
         for item in self.value:
@@ -28,7 +28,7 @@ class AtRule:
         self.name = name
         self.prelude = []
         self.value = []
-    
+
     @property
     def content_mode(self):
         if self.name in ["media"]:  # rule-filled
@@ -37,7 +37,7 @@ class AtRule:
             return DECLARATION_MODE
         else:
             xxx
-    
+
     def pretty_print(self, indent):
         i = "  " * indent
         print i, "AtRule:"
@@ -51,13 +51,13 @@ class AtRule:
 
 
 class StyleRule:
-    
+
     content_mode = DECLARATION_MODE
-    
+
     def __init__(self):
         self.selector = []
         self.value = []
-    
+
     def pretty_print(self, indent):
         i = "  " * indent
         print i, "StyleRule:"
@@ -73,7 +73,7 @@ class Declaration:
     def __init__(self, name):
         self.name = name
         self.value = []
-    
+
     def pretty_print(self, indent):
         i = "  " * indent
         print i, "Declaration:"
@@ -86,7 +86,7 @@ class Declaration:
 class Primitive:
     def __init__(self, primitive):
         self.primitive = primitive
-    
+
     def pretty_print(self, indent):
         i = "  " * indent
         print i, self.primitive
@@ -96,7 +96,7 @@ class Function:
     def __init__(self, name):
         self.name = name
         self.arguments = []
-    
+
     def pretty_print(self, indent):
         i = "  " * indent
         print i, "Function:"
@@ -112,7 +112,7 @@ class SimpleBlock:
     def __init__(self, associated_token):
         self.associated_token = associated_token
         self.value = []
-    
+
     def pretty_print(self, indent):
         i = "  " * indent
         print i, "SimpleBlock:"
@@ -126,24 +126,24 @@ class SimpleBlock:
 # follow the spec as much as possible
 
 class Parser:
-    
+
     def __init__(self, tokens):
         self.index = 0
         self.tokens = tokens
         self.mode = TOP_LEVEL_MODE
         self.open_rule_stack = [Stylesheet()]
-    
+
     def consume_next_input_token(self):
         token = self.tokens[self.index]
         self.index += 1
         return token
-    
+
     def reprocess_current_input_token(self):
         self.index -= 1
-    
+
     def current_rule(self):
         return self.open_rule_stack[-1]
-    
+
     def parse(self):
         while self.index < len(self.tokens):
             if self.mode == TOP_LEVEL_MODE:
@@ -163,10 +163,10 @@ class Parser:
             else:
                 print "UNKNOWN MODE", self.mode
                 break
-    
+
     def top_level_mode(self):
         token = self.consume_next_input_token()
-        
+
         if token[0] == "cdo" or token[0] == "cdc" or token[0] == "whitespace":
             pass
         elif token[0] == "at":
@@ -181,10 +181,10 @@ class Parser:
             self.open_rule_stack.append(StyleRule())
             self.mode = SELECTOR_MODE
             self.reprocess_current_input_token()
-    
+
     def at_rule_mode(self):
         token = self.consume_next_input_token()
-        
+
         if token[0] == "semicolon":
             self.pop_current_rule()
             self.switch_to_current_rule_content_mode()
@@ -200,10 +200,10 @@ class Parser:
             xxx
         else:
             self.current_rule().prelude.append(self.consume_primitive(token))
-    
+
     def rule_mode(self):
         token = self.consume_next_input_token()
-        
+
         if token[0] == "whitespace":
             pass
         elif token[0] == "}":
@@ -217,10 +217,10 @@ class Parser:
             self.open_rule_stack.append(StyleRule())
             self.mode = SELECTOR_MODE
             self.reprocess_current_input_token()
-        
+
     def selector_mode(self):
         token = self.consume_next_input_token()
-        
+
         if token[0] == "{":
             self.mode = DECLARATION_MODE
         elif token[0] == "EOF":
@@ -228,10 +228,10 @@ class Parser:
             self.finish_parsing()
         else:
             self.current_rule().selector.append(self.consume_primitive(token))
-    
+
     def declaration_mode(self):
         token = self.consume_next_input_token()
-        
+
         if token[0] == "whitespace" or token[0] == "semicolon":
             pass
         elif token[0] == "}":
@@ -248,10 +248,10 @@ class Parser:
             # @@@ parse error
             self.current_declaration = None
             self.mode = NEXT_DECLARATION_ERROR_MODE
-    
+
     def after_declaration_name_mode(self):
         token = self.consume_next_input_token()
-        
+
         if token[0] == "whitespace":
             pass
         elif token[0] == "colon":
@@ -267,10 +267,10 @@ class Parser:
             # @@@ parse error
             self.current_declaration = None
             self.mode = NEXT_DECLARATION_ERROR_MODE
-    
+
     def declaration_value_mode(self):
         token = self.consume_next_input_token()
-        
+
         if token == ("delim", "!"):
             xxx
         elif token[0] == "semicolon":
@@ -286,7 +286,7 @@ class Parser:
             self.finish_parsing()
         else:
             self.current_declaration.value.append(self.consume_primitive(token))
-    
+
     def consume_primitive(self, token):
         if token[0] == "{" or token[0] == "[" or token == "(":
             return self.consume_simple_block(token)
@@ -294,7 +294,7 @@ class Parser:
             return self.consume_function(token)
         else:
             return Primitive(token)
-    
+
     def consume_simple_block(self, token):
         ending_token = {
             "[": "]",
@@ -307,7 +307,7 @@ class Parser:
                 return current_block
             else:
                 current_block.value.append(self.consume_primitive(token))
-    
+
     def consume_function(self, token):
         function = Function(token[1])
         current_argument = []
@@ -321,10 +321,10 @@ class Parser:
                 current_argument = []
             else:
                 current_argument.append(self.consume_primitive(token))
-    
+
     def switch_to_current_rule_content_mode(self):
         self.mode = self.current_rule().content_mode
-    
+
     def pop_current_rule(self):
         rule = self.open_rule_stack.pop()
         self.current_rule().value.append(rule)
