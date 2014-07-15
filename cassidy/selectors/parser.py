@@ -2,7 +2,7 @@ from .selectors import ElementSelector, AttributeSelector
 
 import ply.yacc as yacc
 
-from .lexer import tokens
+from .lexer import tokens  # noqa
 
 
 def p_selectors_group(p):

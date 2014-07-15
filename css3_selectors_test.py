@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from cassidy.selectors.selectors import *
+from cassidy.selectors.selectors import ElementSelector, AttributeSelector
 from css3syntax.tokenizer import Tokenizer
 from css3syntax.parser import Parser, Primitive, SimpleBlock
 

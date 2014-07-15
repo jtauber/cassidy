@@ -36,7 +36,7 @@ class AtRule:
         elif self.name in ["page"]:  # declaration-filled
             return DECLARATION_MODE
         else:
-            xxx
+            raise NotImplementedError
 
     def pretty_print(self, indent):
         i = "  " * indent
@@ -195,9 +195,9 @@ class Parser:
                 self.mode = DECLARATION_MODE
             else:
                 # @@@ parse error
-                xxx
+                raise NotImplementedError
         elif token[0] == "EOF":
-            xxx
+            raise NotImplementedError
         else:
             self.current_rule().prelude.append(self.consume_primitive(token))
 
@@ -210,9 +210,9 @@ class Parser:
             self.pop_current_rule()
             self.switch_to_current_rule_content_mode()
         elif token[0] == "at":
-            xxx
+            raise NotImplementedError
         elif token[0] == "EOF":
-            xxx
+            raise NotImplementedError
         else:
             self.open_rule_stack.append(StyleRule())
             self.mode = SELECTOR_MODE
@@ -238,7 +238,7 @@ class Parser:
             self.pop_current_rule()
             self.switch_to_current_rule_content_mode
         elif token[0] == "at_rule":
-            xxx
+            raise NotImplementedError
         elif token[0] == "identifier":
             self.current_declaration = Declaration(name=token[1])
             self.mode = AFTER_DECLARATION_NAME_MODE
@@ -272,7 +272,7 @@ class Parser:
         token = self.consume_next_input_token()
 
         if token == ("delim", "!"):
-            xxx
+            raise NotImplementedError
         elif token[0] == "semicolon":
             # @@@ if grammatically valid
             self.current_rule().value.append(self.current_declaration)

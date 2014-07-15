@@ -539,14 +539,14 @@ class Tokenizer:
                 self.tmp_dimension = (int(self.tmp_number), ch)  # @@@ int for now
                 self.state = DIMENSION_STATE
             else:
-                xxx
+                raise NotImplementedError
         elif ch == "-":
-            xxx
+            raise NotImplementedError
         elif is_name_start_character(ch):
             self.tmp_dimension = (int(self.tmp_number), ch)  # @@@ int for now
             self.state = DIMENSION_STATE
         elif ch == "\\":
-            xxx
+            raise NotImplementedError
         else:
             yield ("number", int(self.tmp_number))  # @@@ int for now
             self.state = DATA_STATE
@@ -561,20 +561,20 @@ class Tokenizer:
             self.state = DATA_STATE
             self.reconsume_input_character()
         elif ch == "%":
-            xxx
+            raise NotImplementedError
         elif ch.lower() == "e":
             if not self.supports_scientific_notation:
                 self.tmp_dimension = (float(self.tmp_number), ch)
                 self.state = DIMENSION_STATE
             else:
-                xxx
+                raise NotImplementedError
         elif ch == "-":
-            xxx
+            raise NotImplementedError
         elif is_name_start_character(ch):
             self.tmp_dimension = (float(self.tmp_number), ch)
             self.state = DIMENSION_STATE
         elif ch == "\\":
-            xxx
+            raise NotImplementedError
         else:
             yield ("number", float(self.tmp_number))
             self.state = DATA_STATE
@@ -587,7 +587,7 @@ class Tokenizer:
             unit += ch
             self.tmp_dimension = num, unit
         elif ch == "\\":
-            xxx
+            raise NotImplementedError
         else:
             yield ("dimension", self.tmp_dimension[0], self.tmp_dimension[1])
             self.state = DATA_STATE
