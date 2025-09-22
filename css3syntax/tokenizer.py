@@ -1,24 +1,27 @@
-def is_digit(ch):
+from typing import Generator
+
+
+def is_digit(ch: str) -> bool:
     return "0" <= ch <= "9"
 
 
-def is_hex_digit(ch):
+def is_hex_digit(ch: str) -> bool:
     return is_digit(ch) or "A" <= ch <= "F" or "a" <= ch <= "f"
 
 
-def is_uppercase_letter(ch):
+def is_uppercase_letter(ch: str) -> bool:
     return "A" <= ch <= "Z"
 
 
-def is_lowercase_letter(ch):
+def is_lowercase_letter(ch: str) -> bool:
     return "a" <= ch <= "z"
 
 
-def is_letter(ch):
+def is_letter(ch: str) -> bool:
     return is_uppercase_letter(ch) or is_lowercase_letter(ch)
 
 
-def is_non_ascii_ident_code_point(ch):
+def is_non_ascii_ident_code_point(ch: str) -> bool:
     return any([
         ch == "\u00B7",
         "\u00C0" <= ch <= "\u00D6",
@@ -36,15 +39,15 @@ def is_non_ascii_ident_code_point(ch):
     ])
 
 
-def is_ident_start_code_point(ch):
+def is_ident_start_code_point(ch: str) -> bool:
     return is_letter(ch) or is_non_ascii_ident_code_point(ch) or ch == "\u005F"  # _
 
 
-def is_ident_code_point(ch):
+def is_ident_code_point(ch: str) -> bool:
     return is_ident_start_code_point(ch) or is_digit(ch) or ch == "\u002D"  # -
 
 
-def is_non_printable_code_point(ch):
+def is_non_printable_code_point(ch: str) -> bool:
     return any([
         "\u0000" <= ch <= "\u0008",
         ch == "\u000B",
@@ -53,12 +56,12 @@ def is_non_printable_code_point(ch):
     ])
 
 
-def is_newline(ch):
+def is_newline(ch: str) -> bool:
     return ch == "\u000A"
     # carriage return and form feed removed in preprocessing
 
 
-def is_whitespace(ch):
+def is_whitespace(ch: str) -> bool:
     return any([
         is_newline(ch),
         ch == "\u0009",
@@ -66,17 +69,17 @@ def is_whitespace(ch):
     ])
 
 
-def is_surrogate(code_point):
+def is_surrogate(code_point: int) -> bool:
     return 0xD800 <= code_point <= 0xDFFF
 
 
 # 4.3.8
-def are_a_valid_escape(ch_pair):
+def are_a_valid_escape(ch_pair: str) -> bool:
     return ch_pair[0] == "\\" and ch_pair[1] != "\n"
 
 
 # 4.3.9
-def would_start_ident_sequence(ch_triplet):
+def would_start_ident_sequence(ch_triplet: str) -> bool:
     if ch_triplet[0] == "\u002D":
         if any([
             is_ident_start_code_point(ch_triplet[1]),
@@ -98,7 +101,7 @@ def would_start_ident_sequence(ch_triplet):
 
 
 # 4.3.10
-def start_number(ch_triplet):
+def start_number(ch_triplet: str) -> bool:
     if ch_triplet[0] == "\u002B" or ch_triplet[0] == "\u002D":
         if is_digit(ch_triplet[1]):
             return True
@@ -118,7 +121,7 @@ def start_number(ch_triplet):
 
 
 # 4.3.11
-def start_unicode_range(ch_triplet):
+def start_unicode_range(ch_triplet: str) -> bool:
     return all([
         ch_triplet[0] in ("U", "u"),
         ch_triplet[1] == "+",
@@ -161,7 +164,7 @@ class Tokenizer:
     def __init__(self, unicode_ranges_allowed=False):
         self.unicode_ranges_allowed = unicode_ranges_allowed
 
-    def tokenize(self, s):
+    def tokenize(self, s: str) -> Generator[tuple]:
         self.s = s
         self.index = 0
 
@@ -171,7 +174,7 @@ class Tokenizer:
             if token[0] == EOF_TOKEN:
                 break
 
-    def consume_next_input_code_point(self):
+    def consume_next_input_code_point(self) -> str | None:
         if self.index >= len(self.s):
             ch = None
         else:
@@ -180,18 +183,18 @@ class Tokenizer:
 
         return ch
 
-    def consume_whitespace(self):
+    def consume_whitespace(self)-> None:
         while self.index < len(self.s) and is_whitespace(self.s[self.index]):
             self.index += 1
 
-    def next_input_code_point(self, size=1):
+    def next_input_code_point(self, size=1) -> str:
         return self.s[self.index:self.index + size]
 
-    def reconsume_input_code_point(self):
+    def reconsume_input_code_point(self) -> None:
         self.index -= 1
 
     # 4.3.1
-    def consume_a_token(self, unicode_ranges_allowed=False):
+    def consume_a_token(self, unicode_ranges_allowed: bool = False) -> tuple:
 
         self.consume_comments()
 
@@ -317,7 +320,7 @@ class Tokenizer:
             return (DELIM_TOKEN, ch)
 
     # 4.3.2
-    def consume_comments(self):
+    def consume_comments(self) -> None:
         while True:
             if self.next_input_code_point(2) == "/*":
                 self.index += 2
@@ -334,7 +337,7 @@ class Tokenizer:
                 break
 
     # 4.3.3
-    def consume_a_numeric_token(self):
+    def consume_a_numeric_token(self) -> tuple:
         number = self.consume_a_number()
         if would_start_ident_sequence(self.next_input_code_point(3)):
             tmp_ident = self.consume_an_ident_sequence()
@@ -346,7 +349,7 @@ class Tokenizer:
             return (NUMBER_TOKEN, number[0], number[1], number[2])
 
     # 4.3.4
-    def consume_an_ident_like_token(self):
+    def consume_an_ident_like_token(self) -> tuple:
         string = self.consume_an_ident_sequence()
         if string.lower() == "url" and self.next_input_code_point() == "(":
             self.index += 1
@@ -373,7 +376,7 @@ class Tokenizer:
             return (IDENT_TOKEN, string)
 
     # 4.3.5
-    def consume_a_string_token(self, ending_code_point):
+    def consume_a_string_token(self, ending_code_point) -> tuple:
         string = ""
         while True:
             ch = self.consume_next_input_code_point()
@@ -397,7 +400,7 @@ class Tokenizer:
                 string += ch
 
     # 4.3.6
-    def consume_a_url_token(self):
+    def consume_a_url_token(self) -> tuple:
         string = ""
         self.consume_whitespace()
         while True:
@@ -436,7 +439,7 @@ class Tokenizer:
                 string += ch
 
     # 4.3.7
-    def consume_an_escaped_code_point(self):
+    def consume_an_escaped_code_point(self) -> str:
         ch = self.consume_next_input_code_point()
         if ch is None:
             # @@@ parse error
@@ -445,7 +448,9 @@ class Tokenizer:
             digits = ch
             while len(digits) < 6:
                 ch = self.consume_next_input_code_point()
-                if is_hex_digit(ch):
+                if ch is None:
+                    break  # is this case described in spec?
+                elif is_hex_digit(ch):
                     digits += ch
                 elif is_whitespace(ch):
                     break
@@ -461,7 +466,7 @@ class Tokenizer:
             return ch
 
     # 4.3.12
-    def consume_an_ident_sequence(self):
+    def consume_an_ident_sequence(self) -> str:
         result = ""
         while True:
             ch = self.consume_next_input_code_point()
@@ -477,7 +482,7 @@ class Tokenizer:
         return result
 
     # 4.3.13
-    def consume_a_number(self):
+    def consume_a_number(self) -> tuple:
         _type = "integer"
         number_part = ""
         exponent_part = ""
@@ -534,7 +539,7 @@ class Tokenizer:
 
     # 4.3.14
     # "due to a bad syntax design in early CSS"
-    def consume_a_unicode_range_token(self):
+    def consume_a_unicode_range_token(self) -> tuple:
         self.consume_next_input_code_point()
         self.consume_next_input_code_point()
         first_segment = ""
@@ -583,7 +588,7 @@ class Tokenizer:
             return (UNICODE_RANGE_TOKEN, start_of_range, start_of_range)
 
     # 4.3.15
-    def consume_remnant_of_a_bad_url(self):
+    def consume_remnant_of_a_bad_url(self) -> None:
         while True:
             ch = self.consume_next_input_code_point()
             if ch is None or ch == ")":
