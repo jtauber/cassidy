@@ -22,51 +22,51 @@ def is_letter(ch: str) -> bool:
 
 
 def is_non_ascii_ident_code_point(ch: str) -> bool:
-    return any([
-        ch == "\u00B7",
-        "\u00C0" <= ch <= "\u00D6",
-        "\u00D8" <= ch <= "\u00F6",
-        "\u00F8" <= ch <= "\u037D",
-        "\u037F" <= ch <= "\u1FFF",
-        "\u200C" <= ch <= "\u200D",
-        "\u203F" <= ch <= "\u2040",
-        "\u2070" <= ch <= "\u218F",
-        "\u2C00" <= ch <= "\u2FEF",
-        "\u3001" <= ch <= "\uD7FF",
-        "\uF900" <= ch <= "\uFDCF",
-        "\uFDF0" <= ch <= "\uFFFD",
-        ch >= "\U00010000",
-    ])
+    return any(
+        [
+            ch == "\u00b7",
+            "\u00c0" <= ch <= "\u00d6",
+            "\u00d8" <= ch <= "\u00f6",
+            "\u00f8" <= ch <= "\u037d",
+            "\u037f" <= ch <= "\u1fff",
+            "\u200c" <= ch <= "\u200d",
+            "\u203f" <= ch <= "\u2040",
+            "\u2070" <= ch <= "\u218f",
+            "\u2c00" <= ch <= "\u2fef",
+            "\u3001" <= ch <= "\ud7ff",
+            "\uf900" <= ch <= "\ufdcf",
+            "\ufdf0" <= ch <= "\ufffd",
+            ch >= "\U00010000",
+        ]
+    )
 
 
 def is_ident_start_code_point(ch: str) -> bool:
-    return is_letter(ch) or is_non_ascii_ident_code_point(ch) or ch == "\u005F"  # _
+    return is_letter(ch) or is_non_ascii_ident_code_point(ch) or ch == "\u005f"  # _
 
 
 def is_ident_code_point(ch: str) -> bool:
-    return is_ident_start_code_point(ch) or is_digit(ch) or ch == "\u002D"  # -
+    return is_ident_start_code_point(ch) or is_digit(ch) or ch == "\u002d"  # -
 
 
 def is_non_printable_code_point(ch: str) -> bool:
-    return any([
-        "\u0000" <= ch <= "\u0008",
-        ch == "\u000B",
-        "\u000E" <= ch <= "\u001F",
-        ch == "\u007F",
-    ])
+    return any(
+        [
+            "\u0000" <= ch <= "\u0008",
+            ch == "\u000b",
+            "\u000e" <= ch <= "\u001f",
+            ch == "\u007f",
+        ]
+    )
 
 
 def is_newline(ch: str) -> bool:
-    return ch == "\u000A"
+    return ch == "\u000a"
     # carriage return and form feed removed in preprocessing
 
 
 def is_whitespace(ch: str) -> bool:
-    return any([
-        is_newline(ch),
-        ch == "\u0009",
-        ch == "\u0020"
-    ])
+    return any([is_newline(ch), ch == "\u0009", ch == "\u0020"])
 
 
 def is_surrogate(code_point: int) -> bool:
@@ -80,12 +80,14 @@ def are_a_valid_escape(ch_pair: str) -> bool:
 
 # 4.3.9
 def would_start_ident_sequence(ch_triplet: str) -> bool:
-    if ch_triplet[0] == "\u002D":
-        if any([
-            is_ident_start_code_point(ch_triplet[1]),
-            ch_triplet[1] == "\u002D",
-            are_a_valid_escape(ch_triplet[1:3])
-        ]):
+    if ch_triplet[0] == "\u002d":
+        if any(
+            [
+                is_ident_start_code_point(ch_triplet[1]),
+                ch_triplet[1] == "\u002d",
+                are_a_valid_escape(ch_triplet[1:3]),
+            ]
+        ):
             return True
         else:
             return False
@@ -102,7 +104,7 @@ def would_start_ident_sequence(ch_triplet: str) -> bool:
 
 # 4.3.10
 def start_number(ch_triplet: str) -> bool:
-    if ch_triplet[0] == "\u002B" or ch_triplet[0] == "\u002D":
+    if ch_triplet[0] == "\u002b" or ch_triplet[0] == "\u002d":
         if is_digit(ch_triplet[1]):
             return True
         elif ch_triplet[1] == "." and is_digit(ch_triplet[2]):
@@ -122,11 +124,13 @@ def start_number(ch_triplet: str) -> bool:
 
 # 4.3.11
 def start_unicode_range(ch_triplet: str) -> bool:
-    return all([
-        ch_triplet[0] in ("U", "u"),
-        ch_triplet[1] == "+",
-        ch_triplet[2] == "\u003F" or is_hex_digit(ch_triplet[2])
-    ])
+    return all(
+        [
+            ch_triplet[0] in ("U", "u"),
+            ch_triplet[1] == "+",
+            ch_triplet[2] == "\u003f" or is_hex_digit(ch_triplet[2]),
+        ]
+    )
 
 
 MAXIMUM_ALLOWED_CODE_POINT = 0x10FFFF
@@ -160,7 +164,6 @@ COMMA_TOKEN = "COMMA"
 
 
 class Tokenizer:
-
     def __init__(self, unicode_ranges_allowed=False):
         self.unicode_ranges_allowed = unicode_ranges_allowed
 
@@ -183,19 +186,18 @@ class Tokenizer:
 
         return ch
 
-    def consume_whitespace(self)-> None:
+    def consume_whitespace(self) -> None:
         while self.index < len(self.s) and is_whitespace(self.s[self.index]):
             self.index += 1
 
     def next_input_code_point(self, size=1) -> str:
-        return self.s[self.index:self.index + size]
+        return self.s[self.index : self.index + size]
 
     def reconsume_input_code_point(self) -> None:
         self.index -= 1
 
     # 4.3.1
     def consume_a_token(self, unicode_ranges_allowed: bool = False) -> tuple:
-
         self.consume_comments()
 
         ch = self.consume_next_input_code_point()
@@ -207,12 +209,12 @@ class Tokenizer:
             self.consume_whitespace()
             return (WHITESPACE_TOKEN,)
 
-        elif ch == "\"":
-            return self.consume_a_string_token("\"")
+        elif ch == '"':
+            return self.consume_a_string_token('"')
 
         elif ch == "#":
-            if (is_ident_code_point(self.next_input_code_point())
-                or are_a_valid_escape(self.next_input_code_point(2))
+            if is_ident_code_point(self.next_input_code_point()) or are_a_valid_escape(
+                self.next_input_code_point(2)
             ):
                 type_flag = "unrestricted"
                 if would_start_ident_sequence(self.next_input_code_point(3)):
@@ -305,7 +307,9 @@ class Tokenizer:
             return self.consume_a_numeric_token()
 
         elif ch == "U" or ch == "u":
-            if unicode_ranges_allowed and start_unicode_range(self.next_input_code_point(3)):
+            if unicode_ranges_allowed and start_unicode_range(
+                self.next_input_code_point(3)
+            ):
                 self.reconsume_input_code_point()
                 return self.consume_a_unicode_range_token()
             else:
@@ -360,12 +364,16 @@ class Tokenizer:
                     continue
                 else:
                     break
-            if any([
-                self.next_input_code_point() == "\"",
-                self.next_input_code_point() == "'",
-                is_whitespace(self.next_input_code_point()) and self.next_input_code_point(2)[1] == "\"",
-                is_whitespace(self.next_input_code_point()) and self.next_input_code_point(2)[1] == "'",
-            ]):
+            if any(
+                [
+                    self.next_input_code_point() == '"',
+                    self.next_input_code_point() == "'",
+                    is_whitespace(self.next_input_code_point())
+                    and self.next_input_code_point(2)[1] == '"',
+                    is_whitespace(self.next_input_code_point())
+                    and self.next_input_code_point(2)[1] == "'",
+                ]
+            ):
                 return (FUNCTION_TOKEN, string)
             else:
                 return self.consume_a_url_token()
@@ -421,12 +429,9 @@ class Tokenizer:
                 else:
                     # @@@ parse error
                     return (BAD_URL_TOKEN, self.consume_remnant_of_a_bad_url())
-            elif any([
-                ch == "\"",
-                ch == "'",
-                ch == "(",
-                is_non_printable_code_point(ch)
-            ]):
+            elif any(
+                [ch == '"', ch == "'", ch == "(", is_non_printable_code_point(ch)]
+            ):
                 # @@@ parse error
                 return (BAD_URL_TOKEN, self.consume_remnant_of_a_bad_url())
             elif ch == "\\":
@@ -443,7 +448,7 @@ class Tokenizer:
         ch = self.consume_next_input_code_point()
         if ch is None:
             # @@@ parse error
-            return "\uFFFD"
+            return "\ufffd"
         elif is_hex_digit(ch):
             digits = ch
             while len(digits) < 6:
@@ -458,8 +463,12 @@ class Tokenizer:
                     self.reconsume_input_code_point()
                     break
             code_point = int(digits, 16)
-            if code_point > MAXIMUM_ALLOWED_CODE_POINT or code_point == 0 or is_surrogate(code_point):
-                return "\uFFFD"
+            if (
+                code_point > MAXIMUM_ALLOWED_CODE_POINT
+                or code_point == 0
+                or is_surrogate(code_point)
+            ):
+                return "\ufffd"
             else:
                 return chr(code_point)
         else:
@@ -499,7 +508,9 @@ class Tokenizer:
                 self.index += 1
             else:
                 break
-        if self.next_input_code_point() == "." and is_digit(self.next_input_code_point(2)[1]):
+        if self.next_input_code_point() == "." and is_digit(
+            self.next_input_code_point(2)[1]
+        ):
             _type = "number"
             number_part += "."
             self.index += 1
@@ -510,10 +521,14 @@ class Tokenizer:
                     self.index += 1
                 else:
                     break
-        if any([
-            self.next_input_code_point() in ("E", "e") and is_digit(self.next_input_code_point(2)[1]),
-            self.next_input_code_point(2) in ("E+", "E-", "e+", "e-") and is_digit(self.next_input_code_point(3)[2])
-        ]):
+        if any(
+            [
+                self.next_input_code_point() in ("E", "e")
+                and is_digit(self.next_input_code_point(2)[1]),
+                self.next_input_code_point(2) in ("E+", "E-", "e+", "e-")
+                and is_digit(self.next_input_code_point(3)[2]),
+            ]
+        ):
             self.consume_next_input_code_point()  # E or e
             tmp = self.next_input_code_point()
             if tmp == "+" or tmp == "-":
@@ -556,7 +571,7 @@ class Tokenizer:
                 ch = self.consume_next_input_code_point()
                 if ch is None:
                     break  # is this described in spec?
-                elif ch == "\u003F":  # ?
+                elif ch == "\u003f":  # ?
                     first_segment += ch
                     if len(first_segment) == 6:
                         break
@@ -568,7 +583,9 @@ class Tokenizer:
             end_of_range = int(first_segment.replace("?", "F"), 16)
             return (UNICODE_RANGE_TOKEN, start_of_range, end_of_range)
         start_of_range = int(first_segment, 16)
-        if self.next_input_code_point() == "-" and is_hex_digit(self.next_input_code_point(2)[1]):
+        if self.next_input_code_point() == "-" and is_hex_digit(
+            self.next_input_code_point(2)[1]
+        ):
             self.index += 1
             second_segment = ""
             while True:
