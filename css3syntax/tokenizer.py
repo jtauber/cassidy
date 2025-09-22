@@ -1,4 +1,5 @@
-from typing import Generator
+from dataclasses import dataclass
+from typing import Generator, Literal
 
 
 def is_digit(ch: str) -> bool:
@@ -135,46 +136,206 @@ def start_unicode_range(ch_triplet: str) -> bool:
 
 MAXIMUM_ALLOWED_CODE_POINT = 0x10FFFF
 
-WHITESPACE_TOKEN = "WS"
-HASH_TOKEN = "HASH"
-DELIM_TOKEN = "DELIM"
-OPEN_PAREN_TOKEN = "OPEN-PAREN"
-CLOSE_PAREN_TOKEN = "CLOSE-PAREN"
-CDC_TOKEN = "CDC"
-CDO_TOKEN = "CDO"
-COLON_TOKEN = "COLON"
-SEMICOLON_TOKEN = "SEMICOLON"
-AT_KEYWORD_TOKEN = "AT"
-OPEN_SQUARE_TOKEN = "OPEN-SQUARE"
-CLOSE_SQUARE_TOKEN = "CLOSE-SQUARE"
-OPEN_CURLY_TOKEN = "OPEN-CURLY"
-CLOSE_CURLY_TOKEN = "CLOSE-CURLY"
-BAD_URL_TOKEN = "BAD-URL"
-URL_TOKEN = "URL"
-EOF_TOKEN = "EOF"
-FUNCTION_TOKEN = "FUNCTION"
-STRING_TOKEN = "STRING"
-BAD_STRING_TOKEN = "BAD-STRING"
-IDENT_TOKEN = "IDENT"
-NUMBER_TOKEN = "NUMBER"
-DIMENSION_TOKEN = "DIM"
-PERCENTAGE_TOKEN = "PERCENTAGE"
-UNICODE_RANGE_TOKEN = "UNICODE-RANGE"
-COMMA_TOKEN = "COMMA"
+
+class Token:
+    pass
+
+
+class WhitespaceToken(Token):
+    def __str__(self):
+        return f"WS"
+
+
+class EofToken(Token):
+    def __str__(self):
+        return f"EOF"
+
+
+class OpenCurlyToken(Token):
+    def __str__(self):
+        return f"OPEN-CURLY"
+
+
+class CloseCurlyToken(Token):
+    def __str__(self):
+        return f"CLOSE-CURLY"
+
+
+class ColonToken(Token):
+    def __str__(self):
+        return f"COLON"
+
+
+class SemicolonToken(Token):
+    def __str__(self):
+        return f"SEMICOLON"
+
+
+class OpenParen(Token):
+    def __str__(self):
+        return f"OPEN-PAREN"
+
+
+class CloseParen(Token):
+    def __str__(self):
+        return f"CLOSE-PAREN"
+
+
+class CommaToken(Token):
+    def __str__(self):
+        return f"COMMA"
+
+
+class OpenSquareToken(Token):
+    def __str__(self):
+        return f"OPEN-SQUARE"
+
+
+class CloseSquareToken(Token):
+    def __str__(self):
+        return f"CLOSE-SQUARE"
+
+
+class CdoToken(Token):
+    def __str__(self):
+        return f"CDO"
+
+
+class CdcToken(Token):
+    def __str__(self):
+        return f"CDC"
+
+
+@dataclass
+class IdentToken(Token):
+    value: str
+
+    def __str__(self):
+        return f"IDENT({self.value})"
+
+
+@dataclass
+class DelimToken(Token):
+    value: str
+
+    def __str__(self):
+        return f"DELIM({self.value})"
+
+
+@dataclass
+class AtKeywordToken(Token):
+    value: str
+
+    def __str__(self):
+        return f"AT({self.value})"
+
+
+@dataclass
+class StringToken(Token):
+    value: str
+
+    def __str__(self):
+        return f"STRING({self.value})"
+
+
+class BadStringToken(Token):
+    def __str__(self):
+        return f"@@@"
+
+
+@dataclass
+class FunctionToken(Token):
+    value: str
+
+    def __str__(self):
+        return f"FUNCTION({self.value})"
+
+
+@dataclass
+class UrlToken(Token):
+    value: str
+
+    def __str__(self):
+        return f"URL({self.value})"
+
+
+@dataclass
+class BadUrlToken(Token):
+    def __str__(self):
+        return f"@@@"
+
+
+@dataclass
+class HashToken(Token):
+    value: str
+    type_flag: Literal["id", "unrestricted"]
+
+    def __str__(self):
+        return f"HASH({self.value})"
+
+
+@dataclass
+class PercentageToken(Token):
+    value: float
+    sign_character: Literal["", "+", "-"]
+
+    def __str__(self):
+        sign_str = self.sign_character if self.sign_character == "+" else ""
+        return f"PERCENTAGE({sign_str}{self.value})"
+
+
+# @@@ could split this into separate integer/number classes
+@dataclass
+class NumberToken(Token):
+    value: int | float
+    type_flag: Literal["integer", "number"]
+    sign_character: Literal["", "+", "-"]
+
+    def __str__(self):
+        sign_str = self.sign_character if self.sign_character == "+" else ""
+        if self.type_flag == "integer":
+            return f"INT({sign_str}{self.value})"
+        else:
+            return f"NUMBER({sign_str}{self.value})"
+
+
+# @@@ could split this into separate integer/number classes
+@dataclass
+class DimensionToken(Token):
+    value: int | float
+    type_flag: Literal["integer", "number"]
+    sign_character: Literal["", "+", "-"]
+    unit: str
+
+    def __str__(self):
+        sign_str = self.sign_character if self.sign_character == "+" else ""
+        return f"DIM({sign_str}{self.value}, {self.unit})"
+
+
+@dataclass
+class UnicodeRangeToken(Token):
+    start: int
+    end: int
+
+    def __str__(self):
+        if self.start == self.end:
+            return f"UNICODE-RANGE({hex(self.start)})"
+        else:
+            return f"UNICODE-RANGE({hex(self.start)}-{hex(self.end)})"
 
 
 class Tokenizer:
     def __init__(self, unicode_ranges_allowed=False):
         self.unicode_ranges_allowed = unicode_ranges_allowed
 
-    def tokenize(self, s: str) -> Generator[tuple]:
+    def tokenize(self, s: str) -> Generator[Token]:
         self.s = s
         self.index = 0
 
         while True:
             token = self.consume_a_token(self.unicode_ranges_allowed)
             yield token
-            if token[0] == EOF_TOKEN:
+            if isinstance(token, EofToken):
                 break
 
     def consume_next_input_code_point(self) -> str | None:
@@ -197,17 +358,17 @@ class Tokenizer:
         self.index -= 1
 
     # 4.3.1
-    def consume_a_token(self, unicode_ranges_allowed: bool = False) -> tuple:
+    def consume_a_token(self, unicode_ranges_allowed: bool = False) -> Token:
         self.consume_comments()
 
         ch = self.consume_next_input_code_point()
 
         if ch is None:
-            return (EOF_TOKEN,)
+            return EofToken()
 
         elif is_whitespace(ch):
             self.consume_whitespace()
-            return (WHITESPACE_TOKEN,)
+            return WhitespaceToken()
 
         elif ch == '"':
             return self.consume_a_string_token('"')
@@ -216,32 +377,37 @@ class Tokenizer:
             if is_ident_code_point(self.next_input_code_point()) or are_a_valid_escape(
                 self.next_input_code_point(2)
             ):
-                type_flag = "unrestricted"
-                if would_start_ident_sequence(self.next_input_code_point(3)):
-                    type_flag = "id"
-                tmp = self.consume_an_ident_sequence()
-                return (HASH_TOKEN, tmp, type_flag)
+                return HashToken(
+                    self.consume_an_ident_sequence(),
+                    type_flag="id"
+                    if would_start_ident_sequence(self.next_input_code_point(3))
+                    else "unrestricted",
+                )
             else:
-                return (DELIM_TOKEN, self.consume_next_input_code_point())
+                value = self.consume_next_input_code_point()
+                if value is not None:
+                    return DelimToken(value)
+                else:
+                    return EofToken()  # is this case described in spec?
 
         elif ch == "'":
             return self.consume_a_string_token("'")
 
         elif ch == "(":
-            return (OPEN_PAREN_TOKEN,)
+            return OpenParen()
 
         elif ch == ")":
-            return (CLOSE_PAREN_TOKEN,)
+            return CloseParen()
 
         elif ch == "+":
             if start_number(self.next_input_code_point(3)):
                 self.reconsume_input_code_point()
                 return self.consume_a_numeric_token()
             else:
-                return (DELIM_TOKEN, ch)
+                return DelimToken(ch)
 
         elif ch == ",":
-            return (COMMA_TOKEN,)
+            return CommaToken()
 
         elif ch == "-":
             if start_number(self.next_input_code_point(3)):
@@ -249,41 +415,41 @@ class Tokenizer:
                 return self.consume_a_numeric_token()
             elif self.next_input_code_point(2) == "->":
                 self.index += 2
-                return (CDC_TOKEN,)
+                return CdcToken()
             elif would_start_ident_sequence(self.next_input_code_point(3)):
                 self.reconsume_input_code_point()
                 return self.consume_an_ident_like_token()
             else:
-                return (DELIM_TOKEN, ch)
+                return DelimToken(ch)
 
         elif ch == ".":
             if start_number(self.next_input_code_point(3)):
                 self.reconsume_input_code_point()
                 return self.consume_a_numeric_token()
             else:
-                return (DELIM_TOKEN, ch)
+                return DelimToken(ch)
 
         elif ch == ":":
-            return (COLON_TOKEN,)
+            return ColonToken()
 
         elif ch == ";":
-            return (SEMICOLON_TOKEN,)
+            return SemicolonToken()
 
         elif ch == "<":
             if self.next_input_code_point(3) == "!--":
                 self.index += 3
-                return (CDO_TOKEN,)
+                return CdoToken()
             else:
-                return (DELIM_TOKEN, ch)
+                return DelimToken(ch)
 
         elif ch == "@":
             if would_start_ident_sequence(self.next_input_code_point(3)):
-                return (AT_KEYWORD_TOKEN, self.consume_an_ident_sequence())
+                return AtKeywordToken(self.consume_an_ident_sequence())
             else:
-                return (DELIM_TOKEN, ch)
+                return DelimToken(ch)
 
         elif ch == "[":
-            return (OPEN_SQUARE_TOKEN,)
+            return OpenSquareToken()
 
         elif ch == "\\":
             if are_a_valid_escape(self.next_input_code_point(2)):
@@ -291,16 +457,16 @@ class Tokenizer:
                 return self.consume_an_ident_like_token()
             else:
                 # @@@ parse error
-                return (DELIM_TOKEN, ch)
+                return DelimToken(ch)
 
         elif ch == "]":
-            return (CLOSE_SQUARE_TOKEN,)
+            return CloseSquareToken()
 
         elif ch == "{":
-            return (OPEN_CURLY_TOKEN,)
+            return OpenCurlyToken()
 
         elif ch == "}":
-            return (CLOSE_CURLY_TOKEN,)
+            return CloseCurlyToken()
 
         elif is_digit(ch):
             self.reconsume_input_code_point()
@@ -321,7 +487,7 @@ class Tokenizer:
             return self.consume_an_ident_like_token()
 
         else:
-            return (DELIM_TOKEN, ch)
+            return DelimToken(ch)
 
     # 4.3.2
     def consume_comments(self) -> None:
@@ -341,19 +507,21 @@ class Tokenizer:
                 break
 
     # 4.3.3
-    def consume_a_numeric_token(self) -> tuple:
+    def consume_a_numeric_token(self) -> NumberToken | PercentageToken | DimensionToken:
         number = self.consume_a_number()
         if would_start_ident_sequence(self.next_input_code_point(3)):
             tmp_ident = self.consume_an_ident_sequence()
-            return (DIMENSION_TOKEN, number[0], number[1], number[2], tmp_ident)
+            return DimensionToken(number[0], number[1], number[2], tmp_ident)
         elif self.next_input_code_point() == "%":
             self.index += 1
-            return (PERCENTAGE_TOKEN, number[0], number[2])
+            return PercentageToken(number[0], number[2])
         else:
-            return (NUMBER_TOKEN, number[0], number[1], number[2])
+            return NumberToken(number[0], number[1], number[2])
 
     # 4.3.4
-    def consume_an_ident_like_token(self) -> tuple:
+    def consume_an_ident_like_token(
+        self,
+    ) -> IdentToken | FunctionToken | UrlToken | BadUrlToken | EofToken:
         string = self.consume_an_ident_sequence()
         if string.lower() == "url" and self.next_input_code_point() == "(":
             self.index += 1
@@ -374,29 +542,31 @@ class Tokenizer:
                     and self.next_input_code_point(2)[1] == "'",
                 ]
             ):
-                return (FUNCTION_TOKEN, string)
+                return FunctionToken(string)
             else:
                 return self.consume_a_url_token()
         elif self.next_input_code_point() == "(":
             self.index += 1
-            return (FUNCTION_TOKEN, string)
+            return FunctionToken(string)
         else:
-            return (IDENT_TOKEN, string)
+            return IdentToken(string)
 
     # 4.3.5
-    def consume_a_string_token(self, ending_code_point) -> tuple:
+    def consume_a_string_token(
+        self, ending_code_point
+    ) -> StringToken | BadStringToken | EofToken:
         string = ""
         while True:
             ch = self.consume_next_input_code_point()
             if ch == ending_code_point:
-                return (STRING_TOKEN, string)
+                return StringToken(string)
             elif ch is None:
                 # @@@ parse error
-                return (EOF_TOKEN,)
+                return EofToken()
             elif is_newline(ch):
                 # @@@ parse error
                 self.reconsume_input_code_point()
-                return (BAD_STRING_TOKEN,)
+                return BadStringToken()
             elif ch == "\\":
                 if self.index >= len(self.s):
                     continue
@@ -408,38 +578,41 @@ class Tokenizer:
                 string += ch
 
     # 4.3.6
-    def consume_a_url_token(self) -> tuple:
+    def consume_a_url_token(self) -> UrlToken | BadUrlToken | EofToken:
         string = ""
         self.consume_whitespace()
         while True:
             ch = self.consume_next_input_code_point()
             if ch == ")":
-                return (URL_TOKEN, string)
+                return UrlToken(string)
             elif ch is None:
                 # @@@ parse error
-                return (EOF_TOKEN,)
+                return EofToken()
             elif is_whitespace(ch):
                 self.consume_whitespace()
                 if self.next_input_code_point() == ")":
                     self.index += 1
-                    return (URL_TOKEN, string)
+                    return UrlToken(string)
                 elif self.index >= len(self.s):
                     # @@@ parse error
-                    return (URL_TOKEN, string)
+                    return UrlToken(string)
                 else:
                     # @@@ parse error
-                    return (BAD_URL_TOKEN, self.consume_remnant_of_a_bad_url())
+                    self.consume_remnant_of_a_bad_url()
+                    return BadUrlToken()
             elif any(
                 [ch == '"', ch == "'", ch == "(", is_non_printable_code_point(ch)]
             ):
                 # @@@ parse error
-                return (BAD_URL_TOKEN, self.consume_remnant_of_a_bad_url())
+                self.consume_remnant_of_a_bad_url()
+                return BadUrlToken()
             elif ch == "\\":
                 if are_a_valid_escape(self.next_input_code_point(2)):
                     string += self.consume_an_escaped_code_point()
                 else:
                     # @@@ parse error
-                    return (BAD_URL_TOKEN, self.consume_remnant_of_a_bad_url())
+                    self.consume_remnant_of_a_bad_url()
+                    return BadUrlToken()
             else:
                 string += ch
 
@@ -554,7 +727,7 @@ class Tokenizer:
 
     # 4.3.14
     # "due to a bad syntax design in early CSS"
-    def consume_a_unicode_range_token(self) -> tuple:
+    def consume_a_unicode_range_token(self) -> UnicodeRangeToken:
         self.consume_next_input_code_point()
         self.consume_next_input_code_point()
         first_segment = ""
@@ -581,7 +754,7 @@ class Tokenizer:
         if "?" in first_segment:
             start_of_range = int(first_segment.replace("?", "0"), 16)
             end_of_range = int(first_segment.replace("?", "F"), 16)
-            return (UNICODE_RANGE_TOKEN, start_of_range, end_of_range)
+            return UnicodeRangeToken(start_of_range, end_of_range)
         start_of_range = int(first_segment, 16)
         if self.next_input_code_point() == "-" and is_hex_digit(
             self.next_input_code_point(2)[1]
@@ -600,9 +773,9 @@ class Tokenizer:
                     self.reconsume_input_code_point()
                     break
             end_of_range = int(second_segment, 16)
-            return (UNICODE_RANGE_TOKEN, start_of_range, end_of_range)
+            return UnicodeRangeToken(start_of_range, end_of_range)
         else:
-            return (UNICODE_RANGE_TOKEN, start_of_range, start_of_range)
+            return UnicodeRangeToken(start_of_range, start_of_range)
 
     # 4.3.15
     def consume_remnant_of_a_bad_url(self) -> None:

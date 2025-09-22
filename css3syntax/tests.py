@@ -91,26 +91,7 @@ t = Tokenizer()
 for css, tokenization in tests:
     tokens = []
     for token in t.tokenize(css):
-        if token[0] == "NUMBER":
-            if token[2] == "integer":
-                tokens.append(f"INT({token[1]})")
-            else:
-                tokens.append(f"NUMBER({token[1]})")
-        elif token[0] == "DIM":
-            tokens.append(
-                f"DIM({token[3] if token[3] == '+' else ''}{token[1]}, {token[4]})"
-            )
-        else:
-            if len(token) == 5:
-                assert False
-            elif len(token) == 4:
-                assert False
-            elif len(token) == 3:
-                tokens.append(f"{token[0]}({token[1]})")
-            elif len(token) == 2:
-                tokens.append(f"{token[0]}({token[1]})")
-            else:
-                tokens.append(token[0])
+        tokens.append(str(token))
     if " ".join(tokens) != tokenization:
         print()
         print(css)
