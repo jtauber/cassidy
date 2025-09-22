@@ -18,587 +18,577 @@ def is_letter(ch):
     return is_uppercase_letter(ch) or is_lowercase_letter(ch)
 
 
-def is_non_ascii_character(ch):
-    return ch >= "\xA0"
+def is_non_ascii_ident_code_point(ch):
+    return any([
+        ch == "\u00B7",
+        "\u00C0" <= ch <= "\u00D6",
+        "\u00D8" <= ch <= "\u00F6",
+        "\u00F8" <= ch <= "\u037D",
+        "\u037F" <= ch <= "\u1FFF",
+        "\u200C" <= ch <= "\u200D",
+        "\u203F" <= ch <= "\u2040",
+        "\u2070" <= ch <= "\u218F",
+        "\u2C00" <= ch <= "\u2FEF",
+        "\u3001" <= ch <= "\uD7FF",
+        "\uF900" <= ch <= "\uFDCF",
+        "\uFDF0" <= ch <= "\uFFFD",
+        ch >= "\U00010000",
+    ])
 
 
-def is_name_start_character(ch):
-    return is_letter(ch) or is_non_ascii_character(ch) or ch == "_"
-    # @@@ *any* non-ascii can start a name?
+def is_ident_start_code_point(ch):
+    return is_letter(ch) or is_non_ascii_ident_code_point(ch) or ch == "\u005F"  # _
 
 
-def is_name_character(ch):
-    return is_name_start_character(ch) or is_digit(ch) or ch == "-"
+def is_ident_code_point(ch):
+    return is_ident_start_code_point(ch) or is_digit(ch) or ch == "\u002D"  # -
 
 
-def is_non_printable_character(ch):
-    return "\x00" <= ch <= "\x08" or "\x0E" <= ch <= "\x1F" or "\x7F" <= ch <= "\x9F"
+def is_non_printable_code_point(ch):
+    return any([
+        "\u0000" <= ch <= "\u0008",
+        ch == "\u000B",
+        "\u000E" <= ch <= "\u001F",
+        ch == "\u007F",
+    ])
 
 
 def is_newline(ch):
-    return ch == "\n" or ch == "\f"
-    # carriage return removed in preprocessing
+    return ch == "\u000A"
+    # carriage return and form feed removed in preprocessing
 
 
 def is_whitespace(ch):
-    return is_newline(ch) or ch == "\t" or ch == " "
+    return any([
+        is_newline(ch),
+        ch == "\u0009",
+        ch == "\u0020"
+    ])
 
 
-MAXIMUM_ALLOWED_CODEPOINT = 0x10FFFF
+def is_surrogate(code_point):
+    return 0xD800 <= code_point <= 0xDFFF
 
-DATA_STATE = 1
-DOUBLE_QUOTE_STRING_STATE = 2
-SINGLE_QUOTE_STRING_STATE = 3
-HASH_STATE = 4
-HASH_REST_STATE = 5
-COMMENT_STATE = 6
-AT_KEYWORD_STATE = 7
-AT_KEYWORD_REST_STATE = 8
-IDENTIFIER_STATE = 9
-IDENTIFIER_REST_STATE = 10
-TRANSFORM_FUNCTION_WHITESPACE_STATE = 11
-NUMBER_STATE = 12
-NUMBER_REST_STATE = 13
-NUMBER_FRACTION_STATE = 14
-DIMENSION_STATE = 15
-SCI_NOTATION_STATE = 16
-URL_STATE = 17
-URL_DOUBLE_QUOTE_STATE = 18
-URL_SINGLE_QUOTE_STATE = 19
-URL_END_STATE = 20
-URL_UNQUOTED_STATE = 21
-BAD_URL_STATE = 22
-UNICODE_RANGE_STATE = 23
+
+# 4.3.8
+def are_a_valid_escape(ch_pair):
+    return ch_pair[0] == "\\" and ch_pair[1] != "\n"
+
+
+# 4.3.9
+def would_start_ident_sequence(ch_triplet):
+    if ch_triplet[0] == "\u002D":
+        if any([
+            is_ident_start_code_point(ch_triplet[1]),
+            ch_triplet[1] == "\u002D",
+            are_a_valid_escape(ch_triplet[1:3])
+        ]):
+            return True
+        else:
+            return False
+    elif is_ident_start_code_point(ch_triplet[0]):
+        return True
+    elif ch_triplet[0] == "\\":
+        if are_a_valid_escape(ch_triplet[0:2]):
+            return True
+        else:
+            return False
+    else:
+        return False
+
+
+# 4.3.10
+def start_number(ch_triplet):
+    if ch_triplet[0] == "\u002B" or ch_triplet[0] == "\u002D":
+        if is_digit(ch_triplet[1]):
+            return True
+        elif ch_triplet[1] == "." and is_digit(ch_triplet[2]):
+            return True
+        else:
+            return False
+    elif ch_triplet[0] == ".":
+        if is_digit(ch_triplet[1]):
+            return True
+        else:
+            return False
+    elif is_digit(ch_triplet[0]):
+        return True
+    else:
+        return False
+
+
+# 4.3.11
+def start_unicode_range(ch_triplet):
+    return all([
+        ch_triplet[0] in ("U", "u"),
+        ch_triplet[1] == "+",
+        ch_triplet[2] == "\u003F" or is_hex_digit(ch_triplet[2])
+    ])
+
+
+MAXIMUM_ALLOWED_CODE_POINT = 0x10FFFF
+
+WHITESPACE_TOKEN = "WS"
+HASH_TOKEN = "HASH"
+DELIM_TOKEN = "DELIM"
+OPEN_PAREN_TOKEN = "OPEN-PAREN"
+CLOSE_PAREN_TOKEN = "CLOSE-PAREN"
+CDC_TOKEN = "CDC"
+CDO_TOKEN = "CDO"
+COLON_TOKEN = "COLON"
+SEMICOLON_TOKEN = "SEMICOLON"
+AT_KEYWORD_TOKEN = "AT"
+OPEN_SQUARE_TOKEN = "OPEN-SQUARE"
+CLOSE_SQUARE_TOKEN = "CLOSE-SQUARE"
+OPEN_CURLY_TOKEN = "OPEN-CURLY"
+CLOSE_CURLY_TOKEN = "CLOSE-CURLY"
+BAD_URL_TOKEN = "BAD-URL"
+URL_TOKEN = "URL"
+EOF_TOKEN = "EOF"
+FUNCTION_TOKEN = "FUNCTION"
+STRING_TOKEN = "STRING"
+BAD_STRING_TOKEN = "BAD-STRING"
+IDENT_TOKEN = "IDENT"
+NUMBER_TOKEN = "NUMBER"
+DIMENSION_TOKEN = "DIM"
+PERCENTAGE_TOKEN = "PERCENTAGE"
+UNICODE_RANGE_TOKEN = "UNICODE-RANGE"
+COMMA_TOKEN = "COMMA"
 
 
 class Tokenizer:
 
-    def __init__(self):
-        self.supports_scientific_notation = False
-        self.transform_function_whitespace = False
+    def __init__(self, unicode_ranges_allowed=False):
+        self.unicode_ranges_allowed = unicode_ranges_allowed
 
     def tokenize(self, s):
         self.s = s
         self.index = 0
-        self.state = DATA_STATE
-        self.tmp_string = None
 
-        while self.index < len(self.s):
-            if self.state == DATA_STATE:
-                for token in self.data_state():
-                    yield token
-            elif self.state == DOUBLE_QUOTE_STRING_STATE:
-                for token in self.double_quote_string_state():
-                    yield token
-            elif self.state == SINGLE_QUOTE_STRING_STATE:
-                for token in self.single_quote_string_state():
-                    yield token
-            elif self.state == HASH_STATE:
-                for token in self.hash_state():
-                    yield token
-            elif self.state == HASH_REST_STATE:
-                for token in self.hash_rest_state():
-                    yield token
-            elif self.state == COMMENT_STATE:
-                for token in self.comment_state():
-                    yield token
-            elif self.state == AT_KEYWORD_STATE:
-                for token in self.at_keyword_state():
-                    yield token
-            elif self.state == AT_KEYWORD_REST_STATE:
-                for token in self.at_keyword_rest_state():
-                    yield token
-            elif self.state == IDENTIFIER_STATE:
-                for token in self.identifier_state():
-                    yield token
-            elif self.state == IDENTIFIER_REST_STATE:
-                for token in self.identifier_rest_state():
-                    yield token
-            # TRANSFORM_FUNCTION_WHITESPACE_STATE
-            elif self.state == NUMBER_STATE:
-                for token in self.number_state():
-                    yield token
-            elif self.state == NUMBER_REST_STATE:
-                for token in self.number_rest_state():
-                    yield token
-            elif self.state == NUMBER_FRACTION_STATE:
-                for token in self.number_fraction_state():
-                    yield token
-            elif self.state == DIMENSION_STATE:
-                for token in self.dimension_state():
-                    yield token
-            #
-            # elif self.state == URL_STATE:
-            #     for token in self.url_state():
-            #         yield token
-            else:
-                raise Exception("UNKNOWN STATE %s" % self.state)
+        while True:
+            token = self.consume_a_token(self.unicode_ranges_allowed)
+            yield token
+            if token[0] == EOF_TOKEN:
+                break
 
-        # @@@ does it have to end in a particular state?
-        yield ("EOF",)
+    def consume_next_input_code_point(self):
+        if self.index >= len(self.s):
+            ch = None
+        else:
+            ch = self.s[self.index]
+            self.index += 1
 
-    def consume_next_input_character(self):
-        ch = self.s[self.index]
-        self.index += 1
         return ch
 
     def consume_whitespace(self):
         while self.index < len(self.s) and is_whitespace(self.s[self.index]):
             self.index += 1
 
-    def consume_escaped_character(self):
-        ch = self.consume_next_input_character()
-        if is_hex_digit(ch):
+    def next_input_code_point(self, size=1):
+        return self.s[self.index:self.index + size]
+
+    def reconsume_input_code_point(self):
+        self.index -= 1
+
+    # 4.3.1
+    def consume_a_token(self, unicode_ranges_allowed=False):
+
+        self.consume_comments()
+
+        ch = self.consume_next_input_code_point()
+
+        if ch is None:
+            return (EOF_TOKEN,)
+
+        elif is_whitespace(ch):
+            self.consume_whitespace()
+            return (WHITESPACE_TOKEN,)
+
+        elif ch == "\"":
+            return self.consume_a_string_token("\"")
+
+        elif ch == "#":
+            if (is_ident_code_point(self.next_input_code_point())
+                or are_a_valid_escape(self.next_input_code_point(2))
+            ):
+                type_flag = "unrestricted"
+                if would_start_ident_sequence(self.next_input_code_point(3)):
+                    type_flag = "id"
+                tmp = self.consume_an_ident_sequence()
+                return (HASH_TOKEN, tmp, type_flag)
+            else:
+                return (DELIM_TOKEN, self.consume_next_input_code_point())
+
+        elif ch == "'":
+            return self.consume_a_string_token("'")
+
+        elif ch == "(":
+            return (OPEN_PAREN_TOKEN,)
+
+        elif ch == ")":
+            return (CLOSE_PAREN_TOKEN,)
+
+        elif ch == "+":
+            if start_number(self.next_input_code_point(3)):
+                self.reconsume_input_code_point()
+                return self.consume_a_numeric_token()
+            else:
+                return (DELIM_TOKEN, ch)
+
+        elif ch == ",":
+            return (COMMA_TOKEN,)
+
+        elif ch == "-":
+            if start_number(self.next_input_code_point(3)):
+                self.reconsume_input_code_point()
+                return self.consume_a_numeric_token()
+            elif self.next_input_code_point(2) == "->":
+                self.index += 2
+                return (CDC_TOKEN,)
+            elif would_start_ident_sequence(self.next_input_code_point(3)):
+                self.reconsume_input_code_point()
+                return self.consume_an_ident_like_token()
+            else:
+                return (DELIM_TOKEN, ch)
+
+        elif ch == ".":
+            if start_number(self.next_input_code_point(3)):
+                self.reconsume_input_code_point()
+                return self.consume_a_numeric_token()
+            else:
+                return (DELIM_TOKEN, ch)
+
+        elif ch == ":":
+            return (COLON_TOKEN,)
+
+        elif ch == ";":
+            return (SEMICOLON_TOKEN,)
+
+        elif ch == "<":
+            if self.next_input_code_point(3) == "!--":
+                self.index += 3
+                return (CDO_TOKEN,)
+            else:
+                return (DELIM_TOKEN, ch)
+
+        elif ch == "@":
+            if would_start_ident_sequence(self.next_input_code_point(3)):
+                return (AT_KEYWORD_TOKEN, self.consume_an_ident_sequence())
+            else:
+                return (DELIM_TOKEN, ch)
+
+        elif ch == "[":
+            return (OPEN_SQUARE_TOKEN,)
+
+        elif ch == "\\":
+            if are_a_valid_escape(self.next_input_code_point(2)):
+                self.reconsume_input_code_point()
+                return self.consume_an_ident_like_token()
+            else:
+                # @@@ parse error
+                return (DELIM_TOKEN, ch)
+
+        elif ch == "]":
+            return (CLOSE_SQUARE_TOKEN,)
+
+        elif ch == "{":
+            return (OPEN_CURLY_TOKEN,)
+
+        elif ch == "}":
+            return (CLOSE_CURLY_TOKEN,)
+
+        elif is_digit(ch):
+            self.reconsume_input_code_point()
+            return self.consume_a_numeric_token()
+
+        elif ch == "U" or ch == "u":
+            if unicode_ranges_allowed and start_unicode_range(self.next_input_code_point(3)):
+                self.reconsume_input_code_point()
+                return self.consume_a_unicode_range_token()
+            else:
+                self.reconsume_input_code_point()
+                return self.consume_an_ident_like_token()
+
+        elif is_ident_start_code_point(ch):
+            self.reconsume_input_code_point()
+            return self.consume_an_ident_like_token()
+
+        else:
+            return (DELIM_TOKEN, ch)
+
+    # 4.3.2
+    def consume_comments(self):
+        while True:
+            if self.next_input_code_point(2) == "/*":
+                self.index += 2
+                while True:
+                    if self.next_input_code_point(2) == "*/":
+                        self.index += 2
+                        break
+                    elif self.index >= len(self.s):
+                        # @@@ parse error
+                        break
+                    else:
+                        self.index += 1
+            else:
+                break
+
+    # 4.3.3
+    def consume_a_numeric_token(self):
+        number = self.consume_a_number()
+        if would_start_ident_sequence(self.next_input_code_point(3)):
+            tmp_ident = self.consume_an_ident_sequence()
+            return (DIMENSION_TOKEN, number[0], number[1], number[2], tmp_ident)
+        elif self.next_input_code_point() == "%":
+            self.index += 1
+            return (PERCENTAGE_TOKEN, number[0], number[2])
+        else:
+            return (NUMBER_TOKEN, number[0], number[1], number[2])
+
+    # 4.3.4
+    def consume_an_ident_like_token(self):
+        string = self.consume_an_ident_sequence()
+        if string.lower() == "url" and self.next_input_code_point() == "(":
+            self.index += 1
+            while True:
+                next_two = self.next_input_code_point(2)
+                if is_whitespace(next_two[0]) and is_whitespace(next_two[1]):
+                    self.index += 1
+                    continue
+                else:
+                    break
+            if any([
+                self.next_input_code_point() == "\"",
+                self.next_input_code_point() == "'",
+                is_whitespace(self.next_input_code_point()) and self.next_input_code_point(2)[1] == "\"",
+                is_whitespace(self.next_input_code_point()) and self.next_input_code_point(2)[1] == "'",
+            ]):
+                return (FUNCTION_TOKEN, string)
+            else:
+                return self.consume_a_url_token()
+        elif self.next_input_code_point() == "(":
+            self.index += 1
+            return (FUNCTION_TOKEN, string)
+        else:
+            return (IDENT_TOKEN, string)
+
+    # 4.3.5
+    def consume_a_string_token(self, ending_code_point):
+        string = ""
+        while True:
+            ch = self.consume_next_input_code_point()
+            if ch == ending_code_point:
+                return (STRING_TOKEN, string)
+            elif ch is None:
+                # @@@ parse error
+                return (EOF_TOKEN,)
+            elif is_newline(ch):
+                # @@@ parse error
+                self.reconsume_input_code_point()
+                return (BAD_STRING_TOKEN,)
+            elif ch == "\\":
+                if self.index >= len(self.s):
+                    continue
+                elif is_newline(self.next_input_code_point()):
+                    self.index += 1
+                else:
+                    string += self.consume_an_escaped_code_point()
+            else:
+                string += ch
+
+    # 4.3.6
+    def consume_a_url_token(self):
+        string = ""
+        self.consume_whitespace()
+        while True:
+            ch = self.consume_next_input_code_point()
+            if ch == ")":
+                return (URL_TOKEN, string)
+            elif ch is None:
+                # @@@ parse error
+                return (EOF_TOKEN,)
+            elif is_whitespace(ch):
+                self.consume_whitespace()
+                if self.next_input_code_point() == ")":
+                    self.index += 1
+                    return (URL_TOKEN, string)
+                elif self.index >= len(self.s):
+                    # @@@ parse error
+                    return (URL_TOKEN, string)
+                else:
+                    # @@@ parse error
+                    return (BAD_URL_TOKEN, self.consume_remnant_of_a_bad_url())
+            elif any([
+                ch == "\"",
+                ch == "'",
+                ch == "(",
+                is_non_printable_code_point(ch)
+            ]):
+                # @@@ parse error
+                return (BAD_URL_TOKEN, self.consume_remnant_of_a_bad_url())
+            elif ch == "\\":
+                if are_a_valid_escape(self.next_input_code_point(2)):
+                    string += self.consume_an_escaped_code_point()
+                else:
+                    # @@@ parse error
+                    return (BAD_URL_TOKEN, self.consume_remnant_of_a_bad_url())
+            else:
+                string += ch
+
+    # 4.3.7
+    def consume_an_escaped_code_point(self):
+        ch = self.consume_next_input_code_point()
+        if ch is None:
+            # @@@ parse error
+            return "\uFFFD"
+        elif is_hex_digit(ch):
             digits = ch
-            while len(digits) <= 6:
-                ch = self.consume_next_input_character()
+            while len(digits) < 6:
+                ch = self.consume_next_input_code_point()
                 if is_hex_digit(ch):
                     digits += ch
                 elif is_whitespace(ch):
-                    pass
+                    break
                 else:
-                    self.reconsume_input_character()
+                    self.reconsume_input_code_point()
                     break
             code_point = int(digits, 16)
-            if code_point > MAXIMUM_ALLOWED_CODEPOINT:
-                return u"\uFFFD"
+            if code_point > MAXIMUM_ALLOWED_CODE_POINT or code_point == 0 or is_surrogate(code_point):
+                return "\uFFFD"
             else:
                 return chr(code_point)
         else:
             return ch
 
-    def next_input_character(self, size=1):
-        return self.s[self.index:self.index + size]
+    # 4.3.12
+    def consume_an_ident_sequence(self):
+        result = ""
+        while True:
+            ch = self.consume_next_input_code_point()
+            if ch is None:  # is this case described in spec?
+                break
+            if is_ident_code_point(ch):
+                result += ch
+            elif are_a_valid_escape(self.next_input_code_point(2)):
+                result += self.consume_an_escaped_code_point()
+            else:
+                self.reconsume_input_code_point()
+                break
+        return result
 
-    def reconsume_input_character(self):
-        self.index -= 1
-
-    def data_state(self):
-        ch = self.consume_next_input_character()
-        if is_whitespace(ch):
-            self.consume_whitespace()
-            yield ("WS",)  # whitespace
-        elif ch == "\"":
-            self.state = DOUBLE_QUOTE_STRING_STATE
-        elif ch == "#":
-            self.state = HASH_STATE
-        elif ch == "'":
-            self.state = SINGLE_QUOTE_STRING_STATE
-        elif ch == "(":
-            yield ("(",)
-        elif ch == ")":
-            yield ("CLOSE-PAREN",)  # )
-        elif ch == "+":
-            chs = self.next_input_character(2)
-            if is_digit(chs[0]) or (chs[0] == "." and is_digit(chs[1])):
-                self.state = NUMBER_STATE
-                self.reconsume_input_character()
-            else:
-                yield ("DELIM", "+")
-        elif ch == "-":
-            chs = self.next_input_character(2)
-            if chs == "->":
-                yield ("cdc",)  # @@@
-                self.index += 2
-            elif is_digit(chs[0]) or (chs[0] == "." and is_digit(chs[1])):
-                self.state = NUMBER_STATE
-                self.reconsume_input_character()
-            elif is_name_start_character(chs[0]):
-                self.state = IDENTIFIER_STATE
-                self.reconsume_input_character()
-            else:
-                yield ("delim", "-")  # @@@
-        elif ch == ".":
-            if is_digit(self.next_input_character()):
-                self.state = NUMBER_STATE
-                self.reconsume_input_character()
-            else:
-                yield ("DELIM", ".")
-        elif ch == "/":
-            if self.next_input_character() == "*":
-                self.index += 1
-                self.state = COMMENT_STATE
-            else:
-                yield ("delim", "/")  # @@@
-        elif ch == ":":
-            yield ("COLON",)  # colon
-        elif ch == ";":
-            yield ("SEMICOLON",)  # semicolon
-        elif ch == ",":
-            yield ("COMMA",)  # NEW
-        elif ch == "<":
-            chs = self.next_input_character(3)
-            if chs == "!--":
-                self.index += 3
-                yield ("cdo",)  # @@@
-            else:
-                yield ("delim", "<")  # @@@
-        elif ch == "@":
-            self.state = AT_KEYWORD_STATE
-        elif ch == "[":
-            yield ("OPEN-SQUARE",)
-        elif ch == "\\":
-            if self.index > len(self.s) or is_newline(self.next_input_character()):
-                # @@@ parse error
-                yield ("delim", "\\")  # @@@
-            else:
-                self.state = IDENTIFIER_STATE
-                self.reconsume_input_character()
-        elif ch == "]":
-            yield ("CLOSE-SQUARE",)
-        elif ch == "{":
-            yield ("OPEN-CURLY",)  # {
-        elif ch == "}":
-            yield ("CLOSE-CURLY",)  # }
-        elif is_digit(ch):
-            self.state = NUMBER_STATE
-            self.reconsume_input_character()
-        elif ch == "U" or ch == "u":
-            chs = self.next_input_character(3)
-            if chs[0] == "+" and is_hex_digit(chs[1]):
-                self.index += 1
-                self.state = UNICODE_RANGE_STATE
-            elif chs.lower() == "rl(":
-                self.index += 3
-                self.state = URL_STATE
-            else:
-                self.state = IDENTIFIER_STATE
-                self.reconsume_input_character()
-        elif is_name_start_character(ch):
-            self.state = IDENTIFIER_STATE
-            self.reconsume_input_character()
-        elif self.index > len(self.s):
-            yield ("EOF",)
-        elif ch == ">":
-            yield ("DELIM", ">")
-        elif ch == "*":
-            yield ("DELIM", "*")
-        else:
-            yield ("Xdelim", ch)  # @@@
-
-    def double_quote_string_state(self):
-        if self.tmp_string is None:
-            self.tmp_string = ""
-        ch = self.consume_next_input_character()
-        if ch == "\"":
-            yield ("STRING", self.tmp_string)  # string
-            self.tmp_string = None
-            self.state = DATA_STATE
-        elif self.index > len(self.s):
-            yield ("EOF", )
-        elif is_newline(ch):
-            # @@@ parse error
-            yield ("bad-string",)  # @@@
-            self.state = DATA_STATE
-            self.reconsume_input_character()
-        elif ch == "\\":
-            if self.index > len(self.s):
-                # @@@ parse error
-                yield ("bad-string",)  # @@@
-                self.state = DATA_STATE
-            elif is_newline(self.next_input_character()):
+    # 4.3.13
+    def consume_a_number(self):
+        _type = "integer"
+        number_part = ""
+        exponent_part = ""
+        sign_character = ""
+        tmp = self.next_input_code_point()
+        if tmp == "+" or tmp == "-":
+            sign_character = tmp
+            number_part += sign_character
+            self.index += 1
+        while True:
+            tmp = self.next_input_code_point()
+            if is_digit(tmp):
+                number_part += tmp
                 self.index += 1
             else:
-                self.tmp_string += self.consume_escaped_character()
-        else:
-            self.tmp_string += ch
-
-    def single_quote_string_state(self):
-        if self.tmp_string is None:
-            self.tmp_string = ""
-        ch = self.consume_next_input_character()
-        if ch == "'":
-            yield ("STRING", self.tmp_string)  # string
-            self.tmp_string = None
-            self.state = DATA_STATE
-        elif self.index > len(self.s):
-            yield ("EOF", )
-        elif is_newline(ch):
-            # @@@ parse error
-            yield ("bad-string",)  # @@@
-            self.state = DATA_STATE
-            self.reconsume_input_character()
-        elif ch == "\\":
-            if self.index > len(self.s):
-                # @@@ parse error
-                yield ("bad-string",)  # @@@
-                self.state = DATA_STATE
-            elif is_newline(self.next_input_character()):
+                break
+        if self.next_input_code_point() == "." and is_digit(self.next_input_code_point(2)[1]):
+            _type = "number"
+            number_part += "."
+            self.index += 1
+            while True:
+                tmp = self.next_input_code_point()
+                if is_digit(tmp):
+                    number_part += tmp
+                    self.index += 1
+                else:
+                    break
+        if any([
+            self.next_input_code_point() in ("E", "e") and is_digit(self.next_input_code_point(2)[1]),
+            self.next_input_code_point(2) in ("E+", "E-", "e+", "e-") and is_digit(self.next_input_code_point(3)[2])
+        ]):
+            self.consume_next_input_code_point()  # E or e
+            tmp = self.next_input_code_point()
+            if tmp == "+" or tmp == "-":
+                exponent_part += tmp
                 self.index += 1
-            else:
-                self.tmp_string += self.consume_escaped_character()
+            while True:
+                tmp = self.next_input_code_point()
+                if is_digit(tmp):
+                    exponent_part += tmp
+                    self.index += 1
+                else:
+                    break
+            _type = "number"
+        if exponent_part:
+            value = float(number_part) * (10 ** int(exponent_part))
         else:
-            self.tmp_string += ch
+            if _type == "integer":
+                value = int(number_part)
+            else:
+                value = float(number_part)
 
-    def hash_state(self):
-        ch = self.consume_next_input_character()
-        if is_name_character(ch):
-            self.tmp_hash = ch
-            self.state = HASH_REST_STATE
-        elif ch == "\\":
-            if self.index > len(self.s) or is_newline(self.next_input_character()):
-                yield ("delim", "#")  # @@@
-                self.state = DATA_STATE
-                self.reconsume_input_character()
-            else:
-                self.tmp_hash = self.consume_escaped_character()
-                self.state = HASH_REST_STATE
-        else:
-            yield ("delim", "#")  # @@@
-            self.state = DATA_STATE
-            self.reconsume_input_character()
+        return (value, _type, sign_character)
 
-    def hash_rest_state(self):
-        ch = self.consume_next_input_character()
-        if is_name_character(ch):
-            self.tmp_hash += ch
-        elif ch == "\\":
-            if self.index > len(self.s) or is_newline(self.next_input_character()):
-                yield ("HASH", self.tmp_hash)  # hash
-                self.state = DATA_STATE
-                self.reconsume_input_character()
-            else:
-                self.tmp_hash += self.consume_escaped_character()
+    # 4.3.14
+    # "due to a bad syntax design in early CSS"
+    def consume_a_unicode_range_token(self):
+        self.consume_next_input_code_point()
+        self.consume_next_input_code_point()
+        first_segment = ""
+        while True:
+            ch = self.consume_next_input_code_point()
+            if ch is None:
+                break  # is this described in spec?
+            elif is_hex_digit(ch):
+                first_segment += ch
+                if len(first_segment) == 6:
+                    break
+        if len(first_segment) < 6:
+            while True:
+                ch = self.consume_next_input_code_point()
+                if ch is None:
+                    break  # is this described in spec?
+                elif ch == "\u003F":  # ?
+                    first_segment += ch
+                    if len(first_segment) == 6:
+                        break
+                else:
+                    self.reconsume_input_code_point()
+                    break
+        if "?" in first_segment:
+            start_of_range = int(first_segment.replace("?", "0"), 16)
+            end_of_range = int(first_segment.replace("?", "F"), 16)
+            return (UNICODE_RANGE_TOKEN, start_of_range, end_of_range)
+        start_of_range = int(first_segment, 16)
+        if self.next_input_code_point() == "-" and is_hex_digit(self.next_input_code_point(2)[1]):
+            self.index += 1
+            second_segment = ""
+            while True:
+                ch = self.consume_next_input_code_point()
+                if ch is None:
+                    break  # is this described in spec?
+                elif is_hex_digit(ch):
+                    second_segment += ch
+                    if len(second_segment) == 6:
+                        break
+                else:
+                    self.reconsume_input_code_point()
+                    break
+            end_of_range = int(second_segment, 16)
+            return (UNICODE_RANGE_TOKEN, start_of_range, end_of_range)
         else:
-            yield ("HASH", self.tmp_hash)  # hash
-            self.state = DATA_STATE
-            self.reconsume_input_character()
+            return (UNICODE_RANGE_TOKEN, start_of_range, start_of_range)
 
-    def comment_state(self):
-        ch = self.consume_next_input_character()
-        if ch == "*":
-            if self.next_input_character() == "/":
-                self.index += 1
-                self.state = DATA_STATE
+    # 4.3.15
+    def consume_remnant_of_a_bad_url(self):
+        while True:
+            ch = self.consume_next_input_code_point()
+            if ch is None or ch == ")":
+                return
+            elif are_a_valid_escape(self.next_input_code_point(2)):
+                self.consume_an_escaped_code_point()
             else:
-                pass
-        elif self.index > len(self.s):
-            # @@@ parse error
-            self.state = DATA_STATE
-            self.reconsume_input_character()
-        else:
-            pass
-        return []  # @@@
-
-    def at_keyword_state(self):
-        ch = self.consume_next_input_character()
-        ch2 = self.next_input_character()
-        if ch == "-":
-            if is_name_start_character(ch2):
-                self.tmp_at_keyword = "-" + ch2
-                self.index += 1
-                self.state = AT_KEYWORD_REST_STATE
-            else:
-                yield ("delim", "@")  # @@@
-                self.state = DATA_STATE
-                self.reconsume_input_character()
-        elif is_name_start_character(ch):
-            self.tmp_at_keyword = ch
-            self.state = AT_KEYWORD_REST_STATE
-        elif ch == "\\":
-            if self.index > len(self.s) or is_newline(ch2):
-                yield ("delim", "@")  # @@@
-                self.state = DATA_STATE
-                self.reconsume_input_character()
-            else:
-                self.tmp_at_keyword = self.consume_escaped_character()
-        else:
-            yield ("delim", "@")  # @@@
-            self.state = DATA_STATE
-            self.reconsume_input_character()
-
-    def at_keyword_rest_state(self):
-        ch = self.consume_next_input_character()
-        ch2 = self.next_input_character()
-        if is_name_character(ch):
-            self.tmp_at_keyword += ch
-        elif ch == "\\":
-            if self.index > len(self.s) or is_newline(ch2):
-                yield ("AT", self.tmp_at_keyword)  # at
-                self.state = DATA_STATE
-                self.reconsume_input_character()
-            else:
-                self.tmp_at_keyword += self.consume_escaped_character()
-        else:
-            yield ("AT", self.tmp_at_keyword)  # at
-            self.state = DATA_STATE
-            self.reconsume_input_character()
-
-    def identifier_state(self):
-        ch = self.consume_next_input_character()
-        chs = self.next_input_character()
-        if ch == "-":
-            if is_name_start_character(chs):
-                self.tmp_identifier = "-"
-                self.state = IDENTIFIER_REST_STATE
-            else:
-                self.state = DATA_STATE
-                self.reconsume_input_character()
-        elif is_name_start_character(ch):
-            self.tmp_identifier = ch
-            self.state = IDENTIFIER_REST_STATE
-        elif ch == "\\":
-            if self.index > len(self.s) or is_newline(chs):
-                self.state = DATA_STATE
-                self.reconsume_input_character()
-            else:
-                self.tmp_identifier = self.consume_escaped_character()
-                self.state = IDENTIFIER_REST_STATE
-        else:
-            self.state = DATA_STATE
-            self.reconsume_input_character()
-        return []  # @@@
-
-    def identifier_rest_state(self):
-        ch = self.consume_next_input_character()
-        chs = self.next_input_character()
-        if is_name_character(ch):
-            self.tmp_identifier += ch
-        elif ch == "\\":
-            if self.index > len(self.s) or is_newline(chs):
-                self.state = DATA_STATE
-                self.reconsume_input_character()
-            else:
-                self.tmp_identifier += self.consume_escaped_character()
-        elif ch == "(":
-            yield ("FUNCTION", self.tmp_identifier)  # function
-            self.state = DATA_STATE
-        elif is_whitespace(ch):
-            if self.transform_function_whitespace:
-                self.state = TRANSFORM_FUNCTION_WHITESPACE_STATE
-            else:
-                yield ("IDENT", self.tmp_identifier)  # identifier
-                self.state = DATA_STATE
-                self.reconsume_input_character()
-        else:
-            yield ("IDENT", self.tmp_identifier)  # identifier
-            self.state = DATA_STATE
-            self.reconsume_input_character()
-
-    def number_state(self):
-        self.tmp_number = ""
-        ch = self.consume_next_input_character()
-        chs = self.next_input_character(2)
-        if ch == "-":
-            if is_digit(chs[0]):
-                self.index += 1
-                self.tmp_number += "-"
-                self.tmp_number += chs[0]
-                self.state = NUMBER_REST_STATE
-            elif chs[0] == "." and is_digit(chs[1]):
-                self.index += 2
-                self.tmp_number += "-"
-                self.tmp_number += "."
-                self.tmp_number += chs[1]
-                self.state = NUMBER_FRACTION_STATE
-            else:
-                self.state = DATA_STATE
-                self.reconsume_input_character()
-        elif ch == "+":
-            if is_digit(chs[0]):
-                self.index += 1
-                self.tmp_number += "+"
-                self.tmp_number += chs[0]
-                self.state = NUMBER_REST_STATE
-            elif chs[0] == "." and is_digit(chs[1]):
-                self.index += 2
-                self.tmp_number += "+"
-                self.tmp_number += "."
-                self.tmp_number += chs[1]
-                self.state = NUMBER_FRACTION_STATE
-            else:
-                self.state = DATA_STATE
-                self.reconsume_input_character()
-        elif is_digit(ch):
-            self.tmp_number += ch
-            self.state = NUMBER_REST_STATE
-        elif ch == ".":
-            if is_digit(chs[0]):
-                self.index += 1
-                self.tmp_number += "."
-                self.tmp_number += chs[0]
-                self.state = NUMBER_FRACTION_STATE
-            else:
-                self.state = DATA_STATE
-                self.reconsume_input_character()
-        else:
-            self.state = DATA_STATE
-            self.reconsume_input_character()
-        return []
-
-    def number_rest_state(self):
-        ch = self.consume_next_input_character()
-        chs = self.next_input_character(2)
-        if is_digit(ch):
-            self.tmp_number += ch
-        elif ch == ".":
-            if is_digit(chs[0]):
-                self.index += 1
-                self.tmp_number += "."
-                self.tmp_number += chs[0]
-                self.state = NUMBER_FRACTION_STATE
-            else:
-                yield ("INT", int(self.tmp_number))  # number
-                self.state = DATA_STATE
-                self.reconsume_input_character()
-        elif ch == "%":
-            yield ("percentage", int(self.tmp_number))  # @@@
-            self.state = DATA_STATE
-        elif ch.lower() == "e":
-            if not self.supports_scientific_notation:
-                self.tmp_dimension = (int(self.tmp_number), ch)  # @@@ int for now
-                self.state = DIMENSION_STATE
-            else:
-                raise NotImplementedError
-        elif ch == "-":
-            raise NotImplementedError
-        elif is_name_start_character(ch):
-            self.tmp_dimension = (self.tmp_number, ch)
-            self.state = DIMENSION_STATE
-        elif ch == "\\":
-            raise NotImplementedError
-        else:
-            yield ("INT", int(self.tmp_number))  # @@@ int for now
-            self.state = DATA_STATE
-            self.reconsume_input_character()
-
-    def number_fraction_state(self):
-        ch = self.consume_next_input_character()
-        if is_digit(ch):
-            self.tmp_number += ch
-        elif ch == ".":
-            yield ("NUMBER", float(self.tmp_number))
-            self.state = DATA_STATE
-            self.reconsume_input_character()
-        elif ch == "%":
-            raise NotImplementedError
-        elif ch.lower() == "e":
-            if not self.supports_scientific_notation:
-                self.tmp_dimension = (float(self.tmp_number), ch)
-                self.state = DIMENSION_STATE
-            else:
-                raise NotImplementedError
-        elif ch == "-":
-            raise NotImplementedError
-        elif is_name_start_character(ch):
-            self.tmp_dimension = (float(self.tmp_number), ch)
-            self.state = DIMENSION_STATE
-        elif ch == "\\":
-            raise NotImplementedError
-        else:
-            yield ("NUMBER", float(self.tmp_number))
-            self.state = DATA_STATE
-            self.reconsume_input_character()
-
-    def dimension_state(self):
-        ch = self.consume_next_input_character()
-        if is_name_character(ch):
-            num, unit = self.tmp_dimension
-            unit += ch
-            self.tmp_dimension = num, unit
-        elif ch == "\\":
-            raise NotImplementedError
-        else:
-            yield ("DIM", self.tmp_dimension[0], self.tmp_dimension[1])
-            self.state = DATA_STATE
-            self.reconsume_input_character()
+                continue
