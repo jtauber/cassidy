@@ -38,10 +38,10 @@ tests = [
     #     "\\000026B",
     #     "IDENT(&B) EOF"
     # ),
-    # (
-    #     ".foo { transform: translate(50px",
-    #     "DELIM(.) IDENT(foo) WS OPEN-CURLY WS IDENT(transform) COLON WS FUNCTION(translate) DIM(50, px) EOF"
-    # ),
+    (
+        ".foo { transform: translate(50px",
+        "DELIM(.) IDENT(foo) WS OPEN-CURLY WS IDENT(transform) COLON WS FUNCTION(translate) DIM(50, px) EOF"
+    ),
     ("url(foo)", "URL(foo) EOF"),
     ('url("foo")', "FUNCTION(url) STRING(foo) CLOSE-PAREN EOF"),
     # others
