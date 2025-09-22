@@ -73,15 +73,16 @@ UNICODE_RANGE_STATE = 23
 
 class Tokenizer:
 
-    def __init__(self, s):
-        self.index = 0
-        self.s = s
-        self.state = DATA_STATE
-        self.tmp_string = None
+    def __init__(self):
         self.supports_scientific_notation = False
         self.transform_function_whitespace = False
 
-    def tokenize(self):
+    def tokenize(self, s):
+        self.s = s
+        self.index = 0
+        self.state = DATA_STATE
+        self.tmp_string = None
+
         while self.index < len(self.s):
             if self.state == DATA_STATE:
                 for token in self.data_state():
@@ -127,11 +128,14 @@ class Tokenizer:
                 for token in self.dimension_state():
                     yield token
             #
-            elif self.state == URL_STATE:
-                for token in self.url_state():
-                    yield token
+            # elif self.state == URL_STATE:
+            #     for token in self.url_state():
+            #         yield token
             else:
                 raise Exception("UNKNOWN STATE %s" % self.state)
+
+        # @@@ does it have to end in a particular state?
+        yield ("EOF",)
 
     def consume_next_input_character(self):
         ch = self.s[self.index]
@@ -159,7 +163,7 @@ class Tokenizer:
             if code_point > MAXIMUM_ALLOWED_CODEPOINT:
                 return u"\uFFFD"
             else:
-                return unichr(code_point)
+                return chr(code_point)
         else:
             return ch
 
@@ -173,7 +177,7 @@ class Tokenizer:
         ch = self.consume_next_input_character()
         if is_whitespace(ch):
             self.consume_whitespace()
-            yield ("whitespace",)
+            yield ("WS",)  # whitespace
         elif ch == "\"":
             self.state = DOUBLE_QUOTE_STRING_STATE
         elif ch == "#":
@@ -183,18 +187,18 @@ class Tokenizer:
         elif ch == "(":
             yield ("(",)
         elif ch == ")":
-            yield (")",)
+            yield ("CLOSE-PAREN",)  # )
         elif ch == "+":
             chs = self.next_input_character(2)
             if is_digit(chs[0]) or (chs[0] == "." and is_digit(chs[1])):
                 self.state = NUMBER_STATE
                 self.reconsume_input_character()
             else:
-                yield ("delim", "+")
+                yield ("DELIM", "+")
         elif ch == "-":
             chs = self.next_input_character(2)
             if chs == "->":
-                yield ("cdc",)
+                yield ("cdc",)  # @@@
                 self.index += 2
             elif is_digit(chs[0]) or (chs[0] == "." and is_digit(chs[1])):
                 self.state = NUMBER_STATE
@@ -203,47 +207,49 @@ class Tokenizer:
                 self.state = IDENTIFIER_STATE
                 self.reconsume_input_character()
             else:
-                yield ("delim", "-")
+                yield ("delim", "-")  # @@@
         elif ch == ".":
             if is_digit(self.next_input_character()):
                 self.state = NUMBER_STATE
                 self.reconsume_input_character()
             else:
-                yield ("delim", ".")
+                yield ("DELIM", ".")
         elif ch == "/":
             if self.next_input_character() == "*":
                 self.index += 1
                 self.state = COMMENT_STATE
             else:
-                yield ("delim", "/")
+                yield ("delim", "/")  # @@@
         elif ch == ":":
-            yield ("colon",)
+            yield ("COLON",)  # colon
         elif ch == ";":
-            yield ("semicolon",)
+            yield ("SEMICOLON",)  # semicolon
+        elif ch == ",":
+            yield ("COMMA",)  # NEW
         elif ch == "<":
             chs = self.next_input_character(3)
             if chs == "!--":
                 self.index += 3
-                yield ("cdo",)
+                yield ("cdo",)  # @@@
             else:
-                yield ("delim", "<")
+                yield ("delim", "<")  # @@@
         elif ch == "@":
             self.state = AT_KEYWORD_STATE
         elif ch == "[":
-            yield ("[",)
+            yield ("OPEN-SQUARE",)
         elif ch == "\\":
             if self.index > len(self.s) or is_newline(self.next_input_character()):
                 # @@@ parse error
-                yield ("delim", "\\")
+                yield ("delim", "\\")  # @@@
             else:
                 self.state = IDENTIFIER_STATE
                 self.reconsume_input_character()
         elif ch == "]":
-            yield ("]",)
+            yield ("CLOSE-SQUARE",)
         elif ch == "{":
-            yield ("{",)
+            yield ("OPEN-CURLY",)  # {
         elif ch == "}":
-            yield ("}",)
+            yield ("CLOSE-CURLY",)  # }
         elif is_digit(ch):
             self.state = NUMBER_STATE
             self.reconsume_input_character()
@@ -263,28 +269,32 @@ class Tokenizer:
             self.reconsume_input_character()
         elif self.index > len(self.s):
             yield ("EOF",)
+        elif ch == ">":
+            yield ("DELIM", ">")
+        elif ch == "*":
+            yield ("DELIM", "*")
         else:
-            yield ("delim", ch)
+            yield ("Xdelim", ch)  # @@@
 
     def double_quote_string_state(self):
         if self.tmp_string is None:
             self.tmp_string = ""
         ch = self.consume_next_input_character()
         if ch == "\"":
-            yield ("string", self.tmp_string)
+            yield ("STRING", self.tmp_string)  # string
             self.tmp_string = None
             self.state = DATA_STATE
         elif self.index > len(self.s):
             yield ("EOF", )
         elif is_newline(ch):
             # @@@ parse error
-            yield ("bad-string",)
+            yield ("bad-string",)  # @@@
             self.state = DATA_STATE
             self.reconsume_input_character()
         elif ch == "\\":
             if self.index > len(self.s):
                 # @@@ parse error
-                yield ("bad-string",)
+                yield ("bad-string",)  # @@@
                 self.state = DATA_STATE
             elif is_newline(self.next_input_character()):
                 self.index += 1
@@ -298,20 +308,20 @@ class Tokenizer:
             self.tmp_string = ""
         ch = self.consume_next_input_character()
         if ch == "'":
-            yield ("string", self.tmp_string)
+            yield ("STRING", self.tmp_string)  # string
             self.tmp_string = None
             self.state = DATA_STATE
         elif self.index > len(self.s):
             yield ("EOF", )
         elif is_newline(ch):
             # @@@ parse error
-            yield ("bad-string",)
+            yield ("bad-string",)  # @@@
             self.state = DATA_STATE
             self.reconsume_input_character()
         elif ch == "\\":
             if self.index > len(self.s):
                 # @@@ parse error
-                yield ("bad-string",)
+                yield ("bad-string",)  # @@@
                 self.state = DATA_STATE
             elif is_newline(self.next_input_character()):
                 self.index += 1
@@ -327,14 +337,14 @@ class Tokenizer:
             self.state = HASH_REST_STATE
         elif ch == "\\":
             if self.index > len(self.s) or is_newline(self.next_input_character()):
-                yield ("delim", "#")
+                yield ("delim", "#")  # @@@
                 self.state = DATA_STATE
                 self.reconsume_input_character()
             else:
                 self.tmp_hash = self.consume_escaped_character()
                 self.state = HASH_REST_STATE
         else:
-            yield ("delim", "#")
+            yield ("delim", "#")  # @@@
             self.state = DATA_STATE
             self.reconsume_input_character()
 
@@ -344,13 +354,13 @@ class Tokenizer:
             self.tmp_hash += ch
         elif ch == "\\":
             if self.index > len(self.s) or is_newline(self.next_input_character()):
-                yield ("hash", self.tmp_hash)
+                yield ("HASH", self.tmp_hash)  # hash
                 self.state = DATA_STATE
                 self.reconsume_input_character()
             else:
                 self.tmp_hash += self.consume_escaped_character()
         else:
-            yield ("hash", self.tmp_hash)
+            yield ("HASH", self.tmp_hash)  # hash
             self.state = DATA_STATE
             self.reconsume_input_character()
 
@@ -379,7 +389,7 @@ class Tokenizer:
                 self.index += 1
                 self.state = AT_KEYWORD_REST_STATE
             else:
-                yield ("delim", "@")
+                yield ("delim", "@")  # @@@
                 self.state = DATA_STATE
                 self.reconsume_input_character()
         elif is_name_start_character(ch):
@@ -387,13 +397,13 @@ class Tokenizer:
             self.state = AT_KEYWORD_REST_STATE
         elif ch == "\\":
             if self.index > len(self.s) or is_newline(ch2):
-                yield ("delim", "@")
+                yield ("delim", "@")  # @@@
                 self.state = DATA_STATE
                 self.reconsume_input_character()
             else:
                 self.tmp_at_keyword = self.consume_escaped_character()
         else:
-            yield ("delim", "@")
+            yield ("delim", "@")  # @@@
             self.state = DATA_STATE
             self.reconsume_input_character()
 
@@ -404,13 +414,13 @@ class Tokenizer:
             self.tmp_at_keyword += ch
         elif ch == "\\":
             if self.index > len(self.s) or is_newline(ch2):
-                yield ("at", self.tmp_at_keyword)
+                yield ("AT", self.tmp_at_keyword)  # at
                 self.state = DATA_STATE
                 self.reconsume_input_character()
             else:
                 self.tmp_at_keyword += self.consume_escaped_character()
         else:
-            yield ("at", self.tmp_at_keyword)
+            yield ("AT", self.tmp_at_keyword)  # at
             self.state = DATA_STATE
             self.reconsume_input_character()
 
@@ -451,17 +461,17 @@ class Tokenizer:
             else:
                 self.tmp_identifier += self.consume_escaped_character()
         elif ch == "(":
-            yield ("function", self.tmp_identifier)
+            yield ("FUNCTION", self.tmp_identifier)  # function
             self.state = DATA_STATE
         elif is_whitespace(ch):
             if self.transform_function_whitespace:
                 self.state = TRANSFORM_FUNCTION_WHITESPACE_STATE
             else:
-                yield ("identifier", self.tmp_identifier)
+                yield ("IDENT", self.tmp_identifier)  # identifier
                 self.state = DATA_STATE
                 self.reconsume_input_character()
         else:
-            yield ("identifier", self.tmp_identifier)
+            yield ("IDENT", self.tmp_identifier)  # identifier
             self.state = DATA_STATE
             self.reconsume_input_character()
 
@@ -528,11 +538,11 @@ class Tokenizer:
                 self.tmp_number += chs[0]
                 self.state = NUMBER_FRACTION_STATE
             else:
-                yield ("number", int(self.tmp_number))
+                yield ("INT", int(self.tmp_number))  # number
                 self.state = DATA_STATE
                 self.reconsume_input_character()
         elif ch == "%":
-            yield ("percentage", int(self.tmp_number))
+            yield ("percentage", int(self.tmp_number))  # @@@
             self.state = DATA_STATE
         elif ch.lower() == "e":
             if not self.supports_scientific_notation:
@@ -543,12 +553,12 @@ class Tokenizer:
         elif ch == "-":
             raise NotImplementedError
         elif is_name_start_character(ch):
-            self.tmp_dimension = (int(self.tmp_number), ch)  # @@@ int for now
+            self.tmp_dimension = (self.tmp_number, ch)
             self.state = DIMENSION_STATE
         elif ch == "\\":
             raise NotImplementedError
         else:
-            yield ("number", int(self.tmp_number))  # @@@ int for now
+            yield ("INT", int(self.tmp_number))  # @@@ int for now
             self.state = DATA_STATE
             self.reconsume_input_character()
 
@@ -557,7 +567,7 @@ class Tokenizer:
         if is_digit(ch):
             self.tmp_number += ch
         elif ch == ".":
-            yield ("number", float(self.tmp_number))
+            yield ("NUMBER", float(self.tmp_number))
             self.state = DATA_STATE
             self.reconsume_input_character()
         elif ch == "%":
@@ -576,7 +586,7 @@ class Tokenizer:
         elif ch == "\\":
             raise NotImplementedError
         else:
-            yield ("number", float(self.tmp_number))
+            yield ("NUMBER", float(self.tmp_number))
             self.state = DATA_STATE
             self.reconsume_input_character()
 
@@ -589,6 +599,6 @@ class Tokenizer:
         elif ch == "\\":
             raise NotImplementedError
         else:
-            yield ("dimension", self.tmp_dimension[0], self.tmp_dimension[1])
+            yield ("DIM", self.tmp_dimension[0], self.tmp_dimension[1])
             self.state = DATA_STATE
             self.reconsume_input_character()
